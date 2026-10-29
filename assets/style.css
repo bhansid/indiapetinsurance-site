@@ -515,3 +515,54 @@ body.wiz-open #duo,body.wiz-open #lane{visibility:hidden}
 .legal ul{padding-left:22px;margin:0 0 12px}
 .legal a{color:var(--blue)}
 .legal .contact{border:1.5px solid var(--line);border-radius:18px;padding:18px 20px;margin-top:12px}
+.acct-box{display:grid;gap:12px;background:var(--tint);border:1.5px solid #CFDBFF;border-radius:18px;padding:16px}
+.acct-box>b{font-size:1.05rem}
+.acct-box>span{color:var(--ink-2);font-size:.9rem;margin-top:-6px}
+.check .hint{display:inline}
+.check a{color:var(--blue)}
+
+/* ---- Owner account ---- */
+.acct-login{display:grid;place-items:center;padding-block:clamp(30px,6vw,70px)}
+.acct-card{width:min(460px,100%);background:#fff;border:1.5px solid var(--line);border-radius:26px;padding:clamp(22px,4vw,34px);display:grid;gap:14px;box-shadow:var(--shadow)}
+.acct-card h1{font-size:2.2rem}
+.acct{padding-block:clamp(24px,4vw,48px) 30px;display:grid;gap:22px}
+.acct-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.acct-head h1{font-size:clamp(2rem,4.4vw,3rem);margin-top:6px}
+.acct-head .lede{margin-top:8px}
+.acct-actions{display:flex;gap:10px;flex-wrap:wrap}
+.acct-pets{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+@media (max-width:400px){.acct-pets{grid-template-columns:1fr}}
+.acct-pet{background:#fff;border:1.5px solid var(--line);border-radius:24px;padding:18px;display:grid;gap:14px;align-content:start;box-shadow:var(--shadow-s)}
+.ap-top{display:flex;gap:14px;align-items:center}
+.ap-ph{width:72px;height:72px;flex:none;border-radius:18px;background:var(--saffron-soft);display:grid;place-items:center;font-size:32px;overflow:hidden}
+.ap-ph img{width:100%;height:100%;object-fit:cover}
+.ap-top h2{font-size:1.5rem}
+.ap-sub{color:var(--muted);font-weight:600;font-size:.92rem}
+.ap-id{font-family:var(--mono);font-size:.84rem;color:var(--ink-2)}
+.ap-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ap-acts .btn{white-space:normal;text-align:center;line-height:1.25}
+.ap-acts .btn:first-child{grid-column:1/-1}
+.ap-more{border-top:1px solid var(--line);padding-top:10px}
+.ap-more summary{cursor:pointer;font-weight:700;font-size:.92rem;list-style:none;display:flex;justify-content:space-between}
+.ap-more summary::after{content:"+";color:var(--blue);font-weight:800}
+.ap-more[open] summary::after{content:"–"}
+.ap-more summary::-webkit-details-marker{display:none}
+.ap-files{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px;font-size:.86rem}
+.ap-files li{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ap-files li span:first-child{color:var(--ink-2);overflow-wrap:anywhere}
+.ap-files a{color:var(--blue);font-weight:700}
+.acct-pet .sw{padding:10px 0}
+.acct-pet .sw input[type=checkbox]{width:20px;height:20px;accent-color:var(--green)}
+.acct-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:820px){.acct-two{grid-template-columns:1fr}}
+.acct-two .blk{align-content:start;gap:12px}
+.acct-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.acct-row:last-child{border:0}
+.acct-row span{display:block;font-size:.86rem;color:var(--muted)}
+.mono{font-family:var(--mono)}
+body[data-page="account"] .legalbar{margin-bottom:24px}
+
+/* Hero headline: one heading, same size. 3 lines on desktop, natural wrap on phones */
+.hero h1.h1-3{font-size:clamp(2.4rem,4.6vw,3.75rem);line-height:1.04;letter-spacing:-.04em}
+.h1-3 .ln:last-child{color:var(--ink-2)}
+@media (min-width:921px){.h1-3 .ln{display:block;white-space:nowrap}}

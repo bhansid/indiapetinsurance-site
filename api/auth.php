@@ -11,7 +11,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && $action === 'me') {
     if (!$u) json_out(['ok' => true, 'user' => null]);
     $st = db()->prepare('SELECT id_no, name, species, breed FROM pets WHERE owner_id = ? ORDER BY id DESC');
     $st->execute([$u['id']]);
-    json_out(['ok' => true, 'user' => ['name' => $u['name'], 'role' => $u['role'], 'mobile' => $u['mobile']], 'pets' => $st->fetchAll()]);
+    $pets = $st->fetchAll();
+    // Address etc. from the latest ID, so a second ID doesn't need retyping
+    $profile = [];
+    $lp = db()->prepare('SELECT data FROM pets WHERE owner_id = ? ORDER BY id DESC LIMIT 1');
+    $lp->execute([$u['id']]);
+    if ($row = $lp->fetch()) { $dd = json_decode($row['data'], true) ?: []; foreach (['oName','oMobile','oEmail','oHouse','oLocality','oCity','oState','oPin','eName','eMobile'] as $k) { if (isset($dd[$k])) $profile[$k] = $dd[$k]; } }
+    json_out(['ok' => true, 'user' => ['name' => $u['name'], 'role' => $u['role'], 'mobile' => $u['mobile']], 'pets' => $pets, 'profile' => $profile]);
 }
 
 require_ajax_post();

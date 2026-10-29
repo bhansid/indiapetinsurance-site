@@ -76,7 +76,8 @@ if ($page === 'export') {
         'pets' => 'SELECT p.id_no, p.name, p.species, p.breed, p.gender, p.city, p.state, p.clinic, u.name AS owner, u.mobile, u.email, p.scan_count, p.status, p.created_at FROM pets p JOIN users u ON u.id = p.owner_id ORDER BY p.id DESC',
         'orders' => 'SELECT o.order_no, p.id_no, p.name AS pet, o.product, o.ship_name, o.ship_mobile, o.ship_address, o.ship_city, o.ship_state, o.ship_pin, o.status, o.notes, o.created_at FROM orders o JOIN pets p ON p.id = o.pet_id ORDER BY o.id DESC',
         'quotes' => 'SELECT qq.quote_no, p.id_no, p.name AS pet, p.breed, qq.plan, qq.sum_insured, qq.ill_12m, qq.ongoing, u.name AS owner, u.mobile, qq.status, qq.notes, qq.created_at FROM quotes qq JOIN pets p ON p.id = qq.pet_id JOIN users u ON u.id = qq.owner_id ORDER BY qq.id DESC',
-        'owners' => "SELECT u.name, u.mobile, u.email, u.status, u.created_at, u.last_login_at, (SELECT COUNT(*) FROM pets p WHERE p.owner_id = u.id) AS ids FROM users u WHERE u.role = 'owner' ORDER BY u.id DESC",
+        'owners' => "SELECT u.name, u.mobile, u.email, u.marketing AS marketing_opt_in, u.status, u.created_at, u.last_login_at, (SELECT COUNT(*) FROM pets p WHERE p.owner_id = u.id) AS ids FROM users u WHERE u.role = 'owner' ORDER BY u.id DESC",
+        'marketing' => "SELECT u.name, u.mobile, u.email, u.created_at FROM users u WHERE u.role = 'owner' AND u.marketing = 1 AND u.status = 'active' ORDER BY u.id DESC",
     ];
     if (!isset($sets[$t])) { http_response_code(404); exit; }
     log_activity((int)$me['id'], 'export', $t);
@@ -359,15 +360,18 @@ case 'owners':
     $qq = trim((string)($_GET['q'] ?? ''));
     $where = "u.role = 'owner'"; $args = [];
     if ($qq !== '') { $where .= ' AND (u.name LIKE ? OR u.mobile LIKE ? OR u.email LIKE ?)'; $l = "%$qq%"; array_push($args, $l, $l, $l); }
+    $mk = $_GET['mk'] ?? '';
+    if ($mk === '1') $where .= ' AND u.marketing = 1';
     $total = (int)q("SELECT COUNT(*) FROM users u WHERE $where", $args)->fetchColumn();
+    $mkCount = (int)q("SELECT COUNT(*) FROM users WHERE role = 'owner' AND marketing = 1")->fetchColumn();
     $rows = q("SELECT u.*, (SELECT COUNT(*) FROM pets p WHERE p.owner_id = u.id) AS ids FROM users u WHERE $where ORDER BY u.id DESC LIMIT $per OFFSET $off", $args)->fetchAll();
     ?>
-    <div class="head"><div><h1>Owners</h1><p class="muted"><?= $total ?> accounts. Owners log in at <a href="/account/" target="_blank">/account</a>.</p></div><?php if (can('export')): ?><a class="btn ghost" href="/admin/?p=export&t=owners">Export CSV</a><?php endif; ?></div>
-    <form class="filters" method="get"><input type="hidden" name="p" value="owners"><input name="q" value="<?= e($qq) ?>" placeholder="Search name, mobile or email"><button class="btn">Search</button></form>
-    <div class="card"><div class="tbl-wrap"><table><tr><th>Name</th><th>Mobile</th><th>Email</th><th>IDs</th><th>Status</th><th>Joined</th><th>Last login</th><?php if (can('edit')): ?><th></th><?php endif; ?></tr>
-    <?php foreach ($rows as $u): ?><tr><td><b><?= e($u['name']) ?></b></td><td class="nowrap"><a href="https://wa.me/91<?= e($u['mobile']) ?>" target="_blank" rel="noopener">+91 <?= e($u['mobile']) ?></a></td><td><?= e($u['email']) ?></td><td><a href="/admin/?p=pets&q=<?= e($u['mobile']) ?>"><?= (int)$u['ids'] ?></a></td><td><?= pill($u['status']) ?></td><td class="nowrap"><?= fmt_dt($u['created_at']) ?></td><td class="nowrap"><?= fmt_dt($u['last_login_at']) ?></td>
+    <div class="head"><div><h1>Owners</h1><p class="muted"><?= $total ?> accounts. Owners log in at <a href="/account/" target="_blank">/account</a>.</p></div><?php if (can('export')): ?><div class="inline"><a class="btn ghost" href="/admin/?p=export&t=marketing">Export marketing list (<?= $mkCount ?>)</a><a class="btn ghost" href="/admin/?p=export&t=owners">Export CSV</a></div><?php endif; ?></div>
+    <form class="filters" method="get"><input type="hidden" name="p" value="owners"><input name="q" value="<?= e($qq) ?>" placeholder="Search name, mobile or email"><select name="mk"><option value="">All owners</option><option value="1" <?= $mk === '1' ? 'selected' : '' ?>>Agreed to marketing</option></select><button class="btn">Search</button></form>
+    <div class="card"><div class="tbl-wrap"><table><tr><th>Name</th><th>Mobile</th><th>Email</th><th>IDs</th><th>Marketing</th><th>Status</th><th>Joined</th><th>Last login</th><?php if (can('edit')): ?><th></th><?php endif; ?></tr>
+    <?php foreach ($rows as $u): ?><tr><td><b><?= e($u['name']) ?></b></td><td class="nowrap"><a href="https://wa.me/91<?= e($u['mobile']) ?>" target="_blank" rel="noopener">+91 <?= e($u['mobile']) ?></a></td><td><?= e($u['email']) ?></td><td><a href="/admin/?p=pets&q=<?= e($u['mobile']) ?>"><?= (int)$u['ids'] ?></a></td><td><?= !empty($u['marketing']) ? '<span class="pill ok">Yes</span>' : '<span class="pill grey">No</span>' ?></td><td><?= pill($u['status']) ?></td><td class="nowrap"><?= fmt_dt($u['created_at']) ?></td><td class="nowrap"><?= fmt_dt($u['last_login_at']) ?></td>
       <?php if (can('edit')): ?><td class="nowrap"><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$u['id'] ?>"><input type="hidden" name="back" value="p=owners"><button class="btn ghost sm" name="a" value="user_reset">Reset password</button><button class="btn ghost sm" name="a" value="user_toggle"><?= $u['status'] === 'active' ? 'Disable' : 'Enable' ?></button></form></td><?php endif; ?></tr><?php endforeach; ?>
-    <?php if (!$rows): ?><tr><td colspan="8" class="muted">No owners yet.</td></tr><?php endif; ?></table></div><?php pager($total, $per, $pg, 'p=owners&q=' . urlencode($qq)); ?></div>
+    <?php if (!$rows): ?><tr><td colspan="9" class="muted">No owners yet.</td></tr><?php endif; ?></table></div><?php pager($total, $per, $pg, 'p=owners&q=' . urlencode($qq) . '&mk=' . urlencode((string)$mk)); ?></div>
     <?php break;
 
 case 'team':

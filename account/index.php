@@ -38,6 +38,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 log_activity((int)$me['id'], 'privacy_update', 'pet ' . $pid);
                 $_SESSION['flash'] = 'Saved. The QR profile is updated.';
             }
+        } elseif ($a === 'prefs') {
+            q('UPDATE users SET marketing = ? WHERE id = ?', [isset($_POST['marketing']) ? 1 : 0, $me['id']]);
+            log_activity((int)$me['id'], 'prefs_update', isset($_POST['marketing']) ? 'marketing on' : 'marketing off');
+            $_SESSION['flash'] = 'Your message preferences are saved.';
         } elseif ($a === 'password') {
             if (!password_verify((string)($_POST['current'] ?? ''), (string)$me['password_hash'])) $err = 'Current password is wrong.';
             elseif (strlen((string)($_POST['new'] ?? '')) < 8) $err = 'New password must be at least 8 characters.';
@@ -48,49 +52,126 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 ?><!doctype html>
 <html lang="en-IN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex">
-<title>My account · IndiaPetInsurance.com</title><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/admin/admin.css"></head>
-<?php if (!$me): ?>
-<body class="auth"><main class="auth-card">
-  <a class="brand" href="/" style="text-decoration:none;color:inherit"><span class="mk"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg></span> IndiaPetInsurance<small>.com</small></a>
-  <h1>Log in</h1><p class="muted">See your dogs' and cats' IDs, change what the QR tag shows, and track orders.</p>
-  <?php if ($err): ?><div class="alert err"><?= e($err) ?></div><?php endif; ?>
-  <form method="post" class="form"><?= csrf_field() ?><label>Mobile number or email<input name="login" required autocomplete="username" inputmode="email" placeholder="98xxxxxxxx"></label><label>Password<input type="password" name="password" required autocomplete="current-password"></label><button class="btn">Log in</button></form>
-  <p class="muted small">Forgot your password? Email <a href="mailto:support@indiapetinsurance.com">support@indiapetinsurance.com</a> from your registered email, or with your mobile number, and we'll reset it.</p>
-  <p class="small">New here? <a href="/#make-id">Make a free ID for your dog or cat</a> and your account is created automatically.</p>
-<p class="muted small" style="text-align:center;margin-top:18px"><a href="/privacy-policy/">Privacy</a> · <a href="/terms/">Terms</a> · <a href="/refund-policy/">Returns &amp; refunds</a></p></main></body>
+<title><?= $me ? 'My account' : 'Log in' ?> · IndiaPetInsurance.com</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="/assets/style.css?v=9">
+</head>
+<?php
+$paw = '<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg>';
+$legal = '<div class="wrap"><div class="legalbar"><span>© 2026 Scram Technologies Pvt. Ltd.</span><nav aria-label="Legal"><a href="/privacy-policy/">Privacy Policy</a><a href="/terms/">Terms of Use</a><a href="/refund-policy/">Returns &amp; Refunds</a><a href="mailto:support@indiapetinsurance.com">support@indiapetinsurance.com</a></nav></div></div>';
+if (!$me): ?>
+<body style="padding-bottom:0">
+<nav class="top" aria-label="Main"><div class="wrap"><a class="logo" href="/"><span class="mk"><?= $paw ?></span><span>IndiaPetInsurance<small>.com</small></span></a><a class="btn btn-blue btn-sm" href="/#make-id">Get free ID</a></div></nav>
+<main class="wrap acct-login">
+  <div class="acct-card">
+    <span class="eyebrow">Owner account</span>
+    <h1>Log in</h1>
+    <p class="lede" style="font-size:1rem">Download your dog or cat's ID card, order the safety kit, get insurance quotes and manage what the QR tag shows.</p>
+    <?php if ($err): ?><div class="note" style="background:var(--red-soft);color:#8F1D23"><?= e($err) ?></div><?php endif; ?>
+    <form method="post" style="display:grid;gap:14px"><?= csrf_field() ?>
+      <div class="fld"><label for="lg1">Mobile number or email</label><input class="inp" id="lg1" name="login" required autocomplete="username" placeholder="98xxxxxxxx"></div>
+      <div class="fld"><label for="lg2">Password</label><input class="inp" id="lg2" type="password" name="password" required autocomplete="current-password"></div>
+      <button class="btn btn-blue">Log in</button>
+    </form>
+    <p class="hint">Forgot your password? Email <a href="mailto:support@indiapetinsurance.com">support@indiapetinsurance.com</a> with your registered mobile number and we'll reset it.</p>
+    <p style="font-size:.92rem">New here? <a href="/#make-id">Make a free ID for your dog or cat</a>. Your account is created in the same step.</p>
+  </div>
+</main>
+<?= $legal ?>
+</body>
 <?php else:
   $pets = q('SELECT * FROM pets WHERE owner_id = ? ORDER BY id DESC', [$me['id']])->fetchAll();
   $orders = q('SELECT o.*, p.name AS pet FROM orders o JOIN pets p ON p.id = o.pet_id WHERE o.owner_id = ? ORDER BY o.id DESC', [$me['id']])->fetchAll();
   $quotes = q('SELECT x.*, p.name AS pet FROM quotes x JOIN pets p ON p.id = x.pet_id WHERE x.owner_id = ? ORDER BY x.id DESC', [$me['id']])->fetchAll();
-  $photo = function (int $pid): bool { return (bool)q("SELECT 1 FROM documents WHERE pet_id = ? AND kind = 'photo' LIMIT 1", [$pid])->fetchColumn(); };
-  $products = ['card' => 'PVC card', 'tag' => 'Steel tag', 'combo' => 'Card + tag', 'kit:S' => 'Safety kit (collar S)', 'kit:M' => 'Safety kit (collar M)', 'kit:L' => 'Safety kit (collar L)', 'kit:XL' => 'Safety kit (collar XL)'];
+  $docsFor = function (int $pid): array { return q('SELECT id, kind, label, original_name, mime FROM documents WHERE pet_id = ? ORDER BY id', [$pid])->fetchAll(); };
+  $prodLabel = function (string $p): string { return strpos($p, 'kit:') === 0 ? 'Safety kit · collar ' . substr($p, 4) : (['card' => 'PVC card', 'tag' => 'Steel tag', 'combo' => 'Card + tag'][$p] ?? $p); };
+  $statusText = ['new' => 'Received', 'confirmed' => 'Confirmed', 'printed' => 'Being made', 'shipped' => 'Shipped', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled', 'contacted' => 'Advisor in touch', 'quoted' => 'Quote sent', 'converted' => 'Policy issued', 'closed' => 'Closed'];
+  $kindText = ['photo' => 'Photo', 'record' => 'Health record', 'kyc' => 'ID proof', 'angle' => 'Insurance photo'];
+  $first = explode(' ', $me['name'])[0];
 ?>
-<body><main class="main" style="max-width:1100px;margin:0 auto">
-  <div class="head"><a class="brand" href="/" style="text-decoration:none;color:inherit"><span class="mk"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg></span> IndiaPetInsurance<small>.com</small></a><div class="inline"><?php if (in_array($me['role'], STAFF_ROLES, true)): ?><a class="btn ghost sm" href="/admin/">Admin panel</a><?php endif; ?><a class="btn ghost sm" href="/account/?logout=1">Log out</a></div></div>
-  <?php if ($msg): ?><div class="alert ok"><?= e($msg) ?></div><?php endif; ?><?php if ($err): ?><div class="alert err"><?= e($err) ?></div><?php endif; ?>
-  <div class="head"><div><h1>Hi <?= e(explode(' ', $me['name'])[0]) ?></h1><p class="muted">Your family's IDs, all in one place.</p></div><a class="btn" href="/#make-id">+ Add a dog or cat</a></div>
-  <div class="pets">
-  <?php foreach ($pets as $p): ?>
-    <div class="petcard">
-      <div class="top"><div class="ph"><?php if ($photo((int)$p['id'])): ?><img src="/p.php?id=<?= e($p['id_no']) ?>&photo=1" alt=""><?php else: ?><?= $p['species'] === 'cat' ? '🐱' : '🐶' ?><?php endif; ?></div>
-        <div><h2 style="margin:0"><?= e($p['name']) ?></h2><div class="muted small"><?= e($p['breed']) ?></div><div class="mono small"><?= e($p['id_no']) ?></div></div></div>
-      <div class="inline"><a class="btn ghost sm" href="/p/<?= e($p['id_no']) ?>" target="_blank" rel="noopener">Open QR profile ↗</a><span class="muted small"><?= (int)$p['scan_count'] ?> scans<?= $p['last_scan_at'] ? ' · last ' . date('d M', strtotime($p['last_scan_at'])) : '' ?></span></div>
-      <form method="post"><?= csrf_field() ?><input type="hidden" name="a" value="privacy"><input type="hidden" name="pet" value="<?= (int)$p['id'] ?>">
-        <b class="small">When someone scans the tag, show:</b>
-        <label class="sw">My phone number<input type="checkbox" name="pub_phone" <?= $p['pub_phone'] ? 'checked' : '' ?>></label>
-        <label class="sw">Address<select name="pub_addr"><option value="locality" <?= $p['pub_addr'] === 'locality' ? 'selected' : '' ?>>Locality only</option><option value="exact" <?= $p['pub_addr'] === 'exact' ? 'selected' : '' ?>>Exact address</option></select></label>
-        <label class="sw">Vet and clinic<input type="checkbox" name="pub_vet" <?= $p['pub_vet'] ? 'checked' : '' ?>></label>
-        <label class="sw">Allergies and notes<input type="checkbox" name="pub_allergy" <?= $p['pub_allergy'] ? 'checked' : '' ?>></label>
-        <button class="btn sm" style="margin-top:10px">Save</button></form>
-    </div>
+<body data-page="account" style="padding-bottom:0">
+<nav class="top" aria-label="Main"><div class="wrap">
+  <a class="logo" href="/"><span class="mk"><?= $paw ?></span><span>IndiaPetInsurance<small>.com</small></span></a>
+  <div class="navlinks"><a href="/">Home</a><a href="/insurance/">Insurance</a><?php if (in_array($me['role'], STAFF_ROLES, true)): ?><a href="/admin/">Admin panel</a><?php endif; ?></div>
+  <div class="navright"><a class="navlogin" href="/account/?logout=1" style="display:inline">Log out</a></div>
+</div></nav>
+<main class="wrap acct">
+  <?php if ($msg): ?><div class="done-msg" style="margin-bottom:16px">✓ <?= e($msg) ?></div><?php endif; ?>
+  <?php if ($err): ?><div class="note" style="background:var(--red-soft);color:#8F1D23;margin-bottom:16px"><?= e($err) ?></div><?php endif; ?>
+  <div class="acct-head">
+    <div><span class="eyebrow">My account</span><h1>Hi <?= e($first) ?></h1><p class="lede">Your family's IDs, records, orders and insurance quotes, all in one place.</p></div>
+    <div class="acct-actions"><button class="btn btn-blue" type="button" data-start="dog" data-new="1">+ Add a dog or cat</button><a class="btn btn-ghost" href="/account/download.php">⬇ Download all my data</a></div>
+  </div>
+
+  <div class="acct-pets">
+  <?php foreach ($pets as $p): $docs = $docsFor((int)$p['id']); $photo = null; foreach ($docs as $dd) { if ($dd['kind'] === 'photo') $photo = $dd['id']; } ?>
+    <article class="acct-pet">
+      <div class="ap-top">
+        <div class="ap-ph"><?php if ($photo): ?><img src="/account/file.php?id=<?= (int)$photo ?>" alt="Photo of <?= e($p['name']) ?>"><?php else: ?><?= $p['species'] === 'cat' ? '🐱' : '🐶' ?><?php endif; ?></div>
+        <div style="min-width:0"><h2><?= e($p['name']) ?></h2><div class="ap-sub"><?= e($p['breed']) ?></div><div class="ap-id"><?= e($p['id_no']) ?></div></div>
+      </div>
+      <div class="ap-acts">
+        <button class="btn btn-blue btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="card">View &amp; download ID card</button>
+        <button class="btn btn-saffron btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="kit">Order safety kit · ₹1,000</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="quote">Get insurance quote</button>
+        <a class="btn btn-ghost btn-sm" href="/p/<?= e($p['id_no']) ?>" target="_blank" rel="noopener">QR profile ↗</a>
+      </div>
+      <p class="hint" style="margin:0"><?= (int)$p['scan_count'] ?> QR scans<?= $p['last_scan_at'] ? ' · last on ' . date('j M Y', strtotime($p['last_scan_at'])) : '' ?> · made on <?= date('j M Y', strtotime($p['created_at'])) ?></p>
+      <?php if ($docs): ?><details class="ap-more"><summary>Files (<?= count($docs) ?>)</summary><ul class="ap-files"><?php foreach ($docs as $dd): ?><li><span><?= e($kindText[$dd['kind']] ?? $dd['kind']) ?> · <?= e($dd['original_name']) ?></span><span><a href="/account/file.php?id=<?= (int)$dd['id'] ?>" target="_blank" rel="noopener">Open</a> · <a href="/account/file.php?id=<?= (int)$dd['id'] ?>&amp;dl=1">Download</a></span></li><?php endforeach; ?></ul></details><?php endif; ?>
+      <details class="ap-more"><summary>What strangers see when they scan the tag</summary>
+        <form method="post"><?= csrf_field() ?><input type="hidden" name="a" value="privacy"><input type="hidden" name="pet" value="<?= (int)$p['id'] ?>">
+          <label class="sw"><span><b>My phone number</b></span><input type="checkbox" name="pub_phone" <?= $p['pub_phone'] ? 'checked' : '' ?>></label>
+          <label class="sw"><span><b>My address</b></span><select class="inp" name="pub_addr" style="width:auto"><option value="locality" <?= $p['pub_addr'] === 'locality' ? 'selected' : '' ?>>Locality only</option><option value="exact" <?= $p['pub_addr'] === 'exact' ? 'selected' : '' ?>>Exact address</option></select></label>
+          <label class="sw"><span><b>Vet and clinic</b></span><input type="checkbox" name="pub_vet" <?= $p['pub_vet'] ? 'checked' : '' ?>></label>
+          <label class="sw"><span><b>Allergies and notes</b></span><input type="checkbox" name="pub_allergy" <?= $p['pub_allergy'] ? 'checked' : '' ?>></label>
+          <button class="btn btn-dark btn-sm" style="margin-top:12px">Save</button>
+        </form>
+      </details>
+    </article>
   <?php endforeach; ?>
-  <?php if (!$pets): ?><div class="card"><p>No IDs yet. <a href="/#make-id">Make your first one</a>.</p></div><?php endif; ?>
+  <?php if (!$pets): ?><div class="blk"><h3>No IDs yet</h3><p class="lede">Make your first one in 3 minutes.</p><button class="btn btn-blue" type="button" data-start="dog" data-new="1" style="justify-self:start">Make my dog's ID</button></div><?php endif; ?>
   </div>
-  <div class="split" style="margin-top:16px">
-    <div class="card"><h2>Kit orders</h2><?php if (!$orders): ?><p class="muted">No orders yet.</p><?php endif; ?><?php foreach ($orders as $o): ?><p><b class="mono"><?= e($o['order_no']) ?></b> · <?= e($products[$o['product']] ?? $o['product']) ?> for <?= e($o['pet']) ?> · <span class="pill"><?= e($o['status']) ?></span></p><?php endforeach; ?></div>
-    <div class="card"><h2>Insurance quote requests</h2><?php if (!$quotes): ?><p class="muted">No requests yet.</p><?php endif; ?><?php foreach ($quotes as $x): ?><p><b class="mono"><?= e($x['quote_no']) ?></b> · <?= e(ucfirst($x['plan'])) ?> for <?= e($x['pet']) ?> · ₹<?= number_format((int)$x['sum_insured']) ?> · <span class="pill"><?= e($x['status']) ?></span></p><?php endforeach; ?></div>
+
+  <div class="acct-two">
+    <section class="blk"><h3>Kit orders</h3>
+      <?php if (!$orders): ?><p class="hint">No orders yet. Order a safety kit from any ID above.</p><?php endif; ?>
+      <?php foreach ($orders as $o): ?><div class="acct-row"><div><b class="mono"><?= e($o['order_no']) ?></b><span><?= e($prodLabel($o['product'])) ?> for <?= e($o['pet']) ?> · <?= date('j M Y', strtotime($o['created_at'])) ?></span></div><span class="chip"><?= e($statusText[$o['status']] ?? $o['status']) ?></span></div><?php endforeach; ?>
+    </section>
+    <section class="blk"><h3>Insurance quote requests</h3>
+      <?php if (!$quotes): ?><p class="hint">No quote requests yet. Get one from any ID above.</p><?php endif; ?>
+      <?php foreach ($quotes as $x): ?><div class="acct-row"><div><b class="mono"><?= e($x['quote_no']) ?></b><span><?= e(ucfirst($x['plan'])) ?> for <?= e($x['pet']) ?> · ₹<?= number_format((int)$x['sum_insured']) ?> cover</span></div><span class="chip"><?= e($statusText[$x['status']] ?? $x['status']) ?></span></div><?php endforeach; ?>
+    </section>
   </div>
-  <div class="card" style="max-width:520px"><h2>Change password</h2><form method="post" class="form"><?= csrf_field() ?><input type="hidden" name="a" value="password"><label>Current password<input type="password" name="current" required autocomplete="current-password"></label><label>New password (8+ characters)<input type="password" name="new" required minlength="8" autocomplete="new-password"></label><button class="btn" style="justify-self:start">Update</button></form></div>
-<p class="muted small" style="text-align:center;margin-top:18px"><a href="/privacy-policy/">Privacy</a> · <a href="/terms/">Terms</a> · <a href="/refund-policy/">Returns &amp; refunds</a></p></main></body>
+
+  <div class="acct-two">
+    <section class="blk"><h3>Messages from us</h3>
+      <form method="post" style="display:grid;gap:12px"><?= csrf_field() ?><input type="hidden" name="a" value="prefs">
+        <label class="check"><input type="checkbox" checked disabled><span>Reminders and order updates on WhatsApp <span class="hint">(needed for the service)</span></span></label>
+        <label class="check"><input type="checkbox" name="marketing" <?= !empty($me['marketing']) ? 'checked' : '' ?>><span>Offers, care tips and news by WhatsApp, SMS or email</span></label>
+        <button class="btn btn-dark btn-sm" style="justify-self:start">Save preferences</button>
+      </form>
+    </section>
+    <section class="blk"><h3>Password</h3>
+      <form method="post" style="display:grid;gap:12px"><?= csrf_field() ?><input type="hidden" name="a" value="password">
+        <div class="fld"><label for="pw1">Current password</label><input class="inp" id="pw1" type="password" name="current" required autocomplete="current-password"></div>
+        <div class="fld"><label for="pw2">New password (8+ characters)</label><input class="inp" id="pw2" type="password" name="new" required minlength="8" autocomplete="new-password"></div>
+        <button class="btn btn-dark btn-sm" style="justify-self:start">Change password</button>
+      </form>
+      <p class="hint" style="margin-top:14px">Want your account and data deleted? Email <a href="mailto:support@indiapetinsurance.com?subject=Delete%20my%20account">support@indiapetinsurance.com</a> from your registered details.</p>
+    </section>
+  </div>
+</main>
+<?= $legal ?>
+<?php
+  // Same ID builder as the home page, used here to add another dog or cat and to open existing IDs
+  $home = (string)@file_get_contents(dirname(__DIR__) . '/index.html');
+  $a = strpos($home, '<!-- WIZARD -->'); $b = strpos($home, '<script src="https://cdnjs');
+  if ($a !== false && $b !== false) echo substr($home, $a, $b - $a);
+?>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
+<script src="/assets/app.js?v=9" defer></script>
+</body>
 <?php endif; ?>
 </html>

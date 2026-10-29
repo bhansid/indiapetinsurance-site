@@ -58,7 +58,7 @@ if (!$user) {
 // Keep a clean copy of every wizard field. The full ID-proof number is never stored, only its last 4 digits.
 $allowed = ['species','name','breed','gender','neutered','dobMode','dob','ageY','ageM','weight','colour','marks','lic','licNo','licAuth','kci','kciNo','chip','chipNo',
   'records','rabies','core','deworm','conditions','meds','clinicNone','clinic','clinicArea','doctor','doctorPh','cOwner','cOwnerPh','clinicPh',
-  'oName','oMobile','oEmail','oHouse','oLocality','oCity','oState','oPin','eName','eMobile','kycType','pubPhone','pubAddr','pubVet','pubAllergy','cTerms','cWa','src','entry'];
+  'oName','oMobile','oEmail','oHouse','oLocality','oCity','oState','oPin','eName','eMobile','kycType','pubPhone','pubAddr','pubVet','pubAllergy','cTerms','cWa','cMkt','src','entry'];
 $clean = [];
 foreach ($allowed as $k) { if (array_key_exists($k, $d)) $clean[$k] = is_bool($d[$k]) ? $d[$k] : mb_substr(trim((string)$d[$k]), 0, 200); }
 $clean['oMobile'] = $oMobile;
@@ -87,6 +87,7 @@ try {
     fail($ex instanceof RuntimeException ? $ex->getMessage() : 'Something went wrong while saving. Please try again.', 500);
 }
 
+if (!empty($d['cMkt'])) { $pdo->prepare('UPDATE users SET marketing = 1 WHERE id = ?')->execute([$user['id']]); }
 if ($newAccount) { login_user(['id' => $user['id']]); notify('owner_signup', 'New owner: ' . $oName, '+91 ' . $oMobile . ($oEmail ? ' · ' . $oEmail : ''), 'users', $user['id']); }
 notify('pet_created', (($d['entry'] ?? '') === 'insurance' ? 'New ID via insurance quote: ' : 'New ID: ') . $name . ' (' . $breed . ')', $idNo . ' · ' . $oName . ' · +91 ' . $oMobile . ' · ' . str_field($d, 'oCity', 80) . ($docCount ? " · $docCount file(s)" : '') . (!empty($d['src']) ? ' · ' . str_field($d, 'src', 160) : ''), 'pets', $petId);
 log_activity($user['id'], 'pet_created', $idNo);

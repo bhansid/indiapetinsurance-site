@@ -18,6 +18,7 @@ function schema_statements(string $driver): array {
         password_hash VARCHAR(255) NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'active',
         mobile_verified TINYINT NOT NULL DEFAULT 0,
+        marketing TINYINT NOT NULL DEFAULT 0,
         created_by $fk NULL,
         created_at DATETIME NOT NULL,
         last_login_at DATETIME NULL,
@@ -122,6 +123,16 @@ function schema_statements(string $driver): array {
     $s[] = 'CREATE INDEX idx_notif_status ON notifications (status, channel)';
     $s[] = 'CREATE INDEX idx_rl ON rate_limits (k, created_at)';
     return $s;
+}
+
+/** Small upgrades for databases created by an older version. Safe to run more than once. */
+function migrations(): array {
+    return [
+        'ALTER TABLE users ADD COLUMN marketing TINYINT NOT NULL DEFAULT 0',
+    ];
+}
+function run_migrations(PDO $pdo): void {
+    foreach (migrations() as $sql) { try { $pdo->exec($sql); } catch (PDOException $e) { /* already applied */ } }
 }
 
 function run_schema(PDO $pdo, string $driver): void {
