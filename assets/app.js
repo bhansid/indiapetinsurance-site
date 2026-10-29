@@ -415,7 +415,7 @@ function renderResult(){
      <div><span class="eyebrow" style="color:var(--green)">✓ ID created</span><h2 style="margin-top:10px">Congratulations! ${nm}'s ID is ready.</h2><p class="lede" style="margin-top:12px">${nm} now has a unique ID number, a scan-to-call QR profile and a health record. ${ins1?'Your quote request is just below.':'Now put it on the collar.'}</p>
        <div class="idnum" id="idSlot">${esc(S.idNo)}</div>
        ${S.saved?`<div class="saved"><span class="ok-tag">✓ Saved to your account</span> · <a href="${profileURL(S.idNo)}" target="_blank" rel="noopener">Open QR profile</a> · <a href="/account/">My account</a></div>`:`<div class="saved">Not saved to an account yet. Check your connection and make the ID again.</div>`}
-       <div class="acts">${ins1?`<button class="btn btn-blue" type="button" data-jump="insure">Get ${nm}'s quote ↓</button>`:''}<button class="btn btn-saffron kit-cta" type="button" data-jump="order">Order ${nm}'s safety kit · ₹${KIT_PRICE.toLocaleString('en-IN')}</button></div>
+       <div class="acts">${ins1?`<button class="btn btn-blue" type="button" data-jump="insure">Protect ${nm} now ↓</button>`:''}<button class="btn btn-saffron kit-cta" type="button" data-jump="order">Order ${nm}'s safety kit · ₹${KIT_PRICE.toLocaleString('en-IN')}</button></div>
        <div class="dlrow"><button class="dl-link" type="button" id="dlBtn">⬇ Download digital card (PNG)</button></div>
        <p class="hint" id="dlNote" style="margin-top:6px"></p>
      </div>
@@ -446,6 +446,33 @@ function orderHTML(){const nm=esc(S.name),P=`₹${KIT_PRICE.toLocaleString('en-I
    <div class="kit-info"><span class="eyebrow saffron">${nm}'s safety kit</span><h3>Everything ${nm} needs to find the way home.</h3>${kitInfoHTML(nm)}
    <div class="fld"><span class="lb">Collar size</span><div class="pills">${SIZES.map(([k,c])=>`<button type="button" class="pill" data-size="${k}" aria-pressed="${order.size===k}">${k} <small style="font-weight:600;opacity:.75">${c}</small></button>`).join('')}</div><span class="hint">Measure around ${nm}'s neck and add two fingers of space.</span></div>
    <div class="kit-buy"><div><b>${P}</b><span>Including delivery · Pay on delivery</span></div><button class="btn btn-saffron kit-cta" type="button" id="oNext">Order the kit →</button></div></div></div>`}
+/* ---- Plan details (same facts as /insurance/) ---- */
+const PLANS={
+ essential:{title:'Essential',short:'Insurance, 10 WhatsApp vet consults a year, steel QR tag, partner clinic savings',tag:'Insurance plus everyday protection',
+  gets:['Pet insurance from a licensed insurer: illness, accidents, surgery and hospitalisation, tests and medicines for a covered claim','Cover amount of ₹25,000, ₹50,000 or ₹1,00,000','10 vet consultations a year on WhatsApp (photos, videos, voice notes)','More consultations at member prices after the first 10','Steel QR collar tag','Pet Passport: records, reminders and QR lost-and-found profile','Partner clinic savings, usually 10–15% where agreed','Spay / neuter discount up to 30% at participating clinics (after 30 days)'],
+  not:['GPS tracker and live location','Enhanced vet assistance']},
+ complete:{title:'Complete · with GPS',short:'Everything in Essential plus a 4G GPS tracker and first year of tracking',tag:'Insurance, tracking and extra vet support',
+  gets:['Everything in Essential, with the same insurance policy and cover amounts','4G GPS tracker that you own','Live location tracking, first year included (then about ₹500 a year)','Enhanced vet assistance','Vet access after the first 10 consultations at a small fee each'],
+  not:[]}
+};
+const COVERED=['Vet treatment for new illnesses after the waiting period','Accidents and injuries: road accidents, falls, bites, swallowed objects','Surgery and hospital stays for a covered illness or accident','Tests and medicines your vet prescribes for that treatment','Up to your cover amount, within the policy sub-limits'];
+const NOT_COVERED=['Pre-existing conditions, anything seen before the policy started','Illness in the waiting period after you buy','Vaccines, deworming, flea and tick treatment, grooming and check-ups','Pregnancy, breeding and birth','Cosmetic procedures such as ear or tail cropping','Food, supplements and diet products','Injury from neglect, cruelty or fighting; racing, guarding or commercial dogs','Dental, behaviour and training costs, unless the policy says otherwise'];
+function planDetails(k){const p=PLANS[k],nm=esc(S.name||'your pet');const old=$('#planModal');old&&old.remove();
+  const m=document.createElement('div');m.id='planModal';m.className='pm';m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.setAttribute('aria-label',p.title+' plan details');
+  const li=(arr,cls)=>`<ul class="ticks ${cls||''}">${arr.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  m.innerHTML=`<div class="pm-sheet"><div class="pm-head"><div><span class="eyebrow">${k==='complete'?'Adds GPS':'Plan details'}</span><h3>${p.title}</h3><p class="hint">${p.tag}. Price on your quote, based on ${nm}'s breed, age and cover amount.</p></div><button type="button" class="xbtn" data-pmclose aria-label="Close">✕</button></div>
+   <div class="pm-body">
+    <h4>What ${nm} gets</h4>${li(p.gets)}
+    ${p.not.length?`<h4>Not in this plan</h4>${li(p.not,'no')}<p class="hint">Want these? Choose Complete.</p>`:''}
+    <div class="pm-two"><div class="hc ok"><h4>The insurance covers</h4>${li(COVERED)}</div><div class="hc no"><h4>Usually not covered</h4>${li(NOT_COVERED,'no')}</div></div>
+    <h4>Good to know</h4><ul class="pm-know"><li><b>Age limits:</b> insurers accept dogs and cats within an age range, often a few months up to around 8–10 years for a new policy.</li><li><b>Co-pay:</b> some policies ask you to pay part of a claim, especially for older animals. It is written in the quote.</li><li><b>Claims:</b> you pay the vet and send the bills; the insurer reimburses you as per the policy. We help you file.</li><li><b>Free-look period:</b> after buying you can review the policy and cancel if it doesn't suit you, as per the insurer's terms.</li><li><b>Final word:</b> the insurer's policy wording decides cover, limits and waiting periods.</li></ul>
+    <p class="hint">Partner clinic discounts are membership benefits, not insurance. <a href="/insurance/#covered" target="_blank" rel="noopener">Full comparison</a></p>
+   </div>
+   <div class="pm-foot"><button type="button" class="btn btn-ghost" data-pmclose>Close</button><button type="button" class="btn btn-blue" data-pmchoose="${k}">Choose ${k==='complete'?'Complete':'Essential'}</button></div></div>`;
+  document.body.appendChild(m);
+  const close=()=>{m.remove();document.removeEventListener('keydown',esc_)};const esc_=e=>{if(e.key==='Escape')close()};document.addEventListener('keydown',esc_);
+  m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-pmclose]'))close();const c=e.target.closest('[data-pmchoose]');if(c){ins.plan=c.dataset.pmchoose;close();const b=$('#b-insure');if(b){b.innerHTML=insHTML();bindIns()}}});
+  setTimeout(()=>{const f=m.querySelector('[data-pmchoose]');f&&f.focus({preventScroll:true})},50)}
 function insHTML(){const nm=esc(S.name);
   if(insStep==='done')return `<div class="blk-h"><div><span class="eyebrow">Insurance</span><h3>Quote requested for ${nm}</h3></div></div><div class="done-msg">✓ Request ${esc(ins.no)}: ${ins.plan==='complete'?'Complete':'Essential'} plan, ₹${(+ins.si).toLocaleString('en-IN')} cover. A licensed advisor will send your exact premium on WhatsApp.</div><p class="hint">The insurer decides cover and price after reviewing the details and photos.</p>`;
   if(insStep==='docs'){const A=['Front','Back','Left','Right','Top'];return `<div class="blk-h"><div><span class="eyebrow">Insurance · step 2 of 2</span><h3>Photos the insurer may ask for</h3></div></div>
@@ -455,9 +482,7 @@ function insHTML(){const nm=esc(S.name);
    ${!S.kycType?`<div class="note">Owner ID proof is needed before a policy is issued. You can add it in the ID details.</div>`:''}
    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-ghost" type="button" id="iBack">Back</button><button class="btn btn-blue" type="button" id="iSend">Request my quote</button></div>`}
   return `<div class="blk-h"><div><span class="eyebrow">Insurance · step 1 of 2</span><h3>Protect ${nm}</h3></div><span class="hint">Breed, age and vet are already filled in from the ID.</span></div>
-   <div class="choices" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
-    <button type="button" class="choice" data-plan="essential" aria-pressed="${ins.plan==='essential'}">Essential<small>Insurance, 10 WhatsApp vet consults a year, steel QR tag, partner clinic savings</small></button>
-    <button type="button" class="choice" data-plan="complete" aria-pressed="${ins.plan==='complete'}">Complete · with GPS<small>Everything in Essential plus a 4G GPS tracker and first year of tracking</small></button></div>
+   <div class="plan-pick">${['essential','complete'].map(k=>`<div class="pp-opt ${ins.plan===k?'on':''}"><button type="button" class="choice" data-plan="${k}" aria-pressed="${ins.plan===k}">${PLANS[k].title}<small>${PLANS[k].short}</small></button><button type="button" class="pp-more" data-plandetail="${k}">See plan details →</button></div>`).join('')}</div>
    <div class="fld"><span class="lb">Cover amount</span><div class="pills">${['25000','50000','100000'].map(v=>`<button type="button" class="pill" data-si="${v}" aria-pressed="${ins.si===v}">₹${(+v).toLocaleString('en-IN')}</button>`).join('')}</div><span class="hint">Options depend on the insurer and ${nm}'s breed and age.</span></div>
    <div class="fld"><span class="lb">Has ${nm} been ill or injured in the last 12 months?</span><div class="pills">${['No','Yes'].map(v=>`<button type="button" class="pill" data-ill="${v}" aria-pressed="${ins.ill===v}">${v}</button>`).join('')}</div></div>
    <div class="fld"><span class="lb">Any ongoing condition?</span><div class="pills">${['No','Yes'].map(v=>`<button type="button" class="pill" data-pre="${v}" aria-pressed="${ins.pre===v}">${v}</button>`).join('')}</div><span class="hint">Pre-existing conditions are usually not covered. Declaring them avoids claim problems later.</span></div>
@@ -485,6 +510,7 @@ function bindOrder(){const b=$('#b-order');
       .catch(e=>{pl.disabled=false;pl.textContent=`Place order · ₹${KIT_PRICE.toLocaleString('en-IN')} on delivery`;$('#oErr').textContent=e.error||'Could not place the order. Please try again.'})}}
 function bindIns(){const b=$('#b-insure');
   b.querySelectorAll('[data-plan]').forEach(x=>x.onclick=()=>{ins.plan=x.dataset.plan;b.innerHTML=insHTML();bindIns()});
+  b.querySelectorAll('[data-plandetail]').forEach(x=>x.onclick=()=>planDetails(x.dataset.plandetail));
   ['si','ill','pre'].forEach(k=>b.querySelectorAll(`[data-${k}]`).forEach(x=>x.onclick=()=>{ins[k]=x.dataset[k];b.innerHTML=insHTML();bindIns()}));
   const n=$('#iNext');if(n)n.onclick=()=>{if(!ins.ill||!ins.pre){$('#iErr').textContent='Please answer both health questions.';return}insStep='docs';b.innerHTML=insHTML();bindIns()};
   const bk=$('#iBack');if(bk)bk.onclick=()=>{insStep='';b.innerHTML=insHTML();bindIns()};

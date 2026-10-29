@@ -56,7 +56,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=10">
+<link rel="stylesheet" href="/assets/style.css?v=11">
 </head>
 <?php
 $paw = '<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg>';
@@ -115,7 +115,7 @@ if (!$me): ?>
       <div class="ap-acts">
         <button class="btn btn-blue btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="card">View &amp; download ID card</button>
         <button class="btn btn-saffron btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="kit">Order safety kit · ₹1,000</button>
-        <button class="btn btn-ghost btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="quote">Get insurance quote</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="quote">Protect <?= e($p['name']) ?> now</button>
         <a class="btn btn-ghost btn-sm" href="/p/<?= e($p['id_no']) ?>" target="_blank" rel="noopener">QR profile ↗</a>
       </div>
       <p class="hint" style="margin:0"><?= (int)$p['scan_count'] ?> QR scans<?= $p['last_scan_at'] ? ' · last on ' . date('j M Y', strtotime($p['last_scan_at'])) : '' ?> · made on <?= date('j M Y', strtotime($p['created_at'])) ?></p>
@@ -171,7 +171,7 @@ if (!$me): ?>
   if ($a !== false && $b !== false) echo substr($home, $a, $b - $a);
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
-<script src="/assets/app.js?v=10" defer></script>
+<script src="/assets/app.js?v=11" defer></script>
 </body>
 <?php endif; ?>
 </html>
