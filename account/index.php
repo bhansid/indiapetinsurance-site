@@ -56,7 +56,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=9">
+<link rel="stylesheet" href="/assets/style.css?v=10">
 </head>
 <?php
 $paw = '<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg>';
@@ -171,7 +171,7 @@ if (!$me): ?>
   if ($a !== false && $b !== false) echo substr($home, $a, $b - $a);
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
-<script src="/assets/app.js?v=9" defer></script>
+<script src="/assets/app.js?v=10" defer></script>
 </body>
 <?php endif; ?>
 </html>

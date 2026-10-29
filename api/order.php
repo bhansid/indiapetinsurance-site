@@ -14,7 +14,7 @@ $st->execute([str_field($d, 'id_no', 32), $u['id']]);
 $pet = $st->fetch();
 if (!$pet) fail('ID not found on your account.', 404);
 
-// Current product: the safety kit (2 QR tags, reflective collar, PVC card, travel bottle), ₹1,000 incl. delivery, pay on delivery
+// Current product: the safety kit (2 QR tags, reflective collar, PVC card, one-press water bottle), ₹1,000 incl. delivery, pay on delivery
 const KIT_PRICE = 1000;
 $size = in_array($d['size'] ?? '', ['S', 'M', 'L', 'XL'], true) ? $d['size'] : '';
 $product = ($d['product'] ?? '') === 'kit' && $size ? 'kit:' . $size : '';

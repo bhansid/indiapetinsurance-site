@@ -187,13 +187,21 @@ function prefill(){const p=(ME&&ME.profile)||{},u=(ME&&ME.user)||{};return {oNam
 function resetFlow(){MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';order={prod:'kit',size:'M'};ins={plan:'complete',si:'50000',ill:'',pre:''};step=0}
 function open(spc,g,fresh){load();if(fresh){S={...blank(),...prefill()};resetFlow();save()}goal=g||'';errs={};if(goal==='insure'&&!S.idNo)S.entry='insurance';else if(!S.name&&!S.idNo)S.entry=S.entry||'id';
   if(S.idNo&&S.cTerms){view='result'}else{view='steps';if(!S.name){if(spc){S.species=spc;step=1}else step=0}else step=firstIncomplete()}
-  wiz.hidden=false;document.body.classList.add('wiz-open');render();setTimeout(()=>{const f=Q.querySelector('input,button');f&&f.focus({preventScroll:true})},60)}
+  wiz.hidden=false;document.body.classList.add('wiz-open');render();if(innerWidth>900)setTimeout(()=>{const f=Q.querySelector('input,button');f&&f.focus({preventScroll:true})},60)}
 function close(){save();wiz.hidden=true;document.body.classList.remove('wiz-open');if(document.body.dataset.page==='account')location.reload()}
 $$('[data-start]').forEach(b=>b.addEventListener('click',()=>open(b.dataset.start,b.dataset.goal,!!b.dataset.new)));
 /* Owner portal: open an existing ID to download the card, order the kit or get a quote */
 async function showPet(idNo,act){try{const j=await api('mypet.php?id='+encodeURIComponent(idNo));S={...blank(),...j.data,idNo:j.id_no,saved:true,cTerms:true,createdAt:j.created_at};resetFlow();MEM.photo=j.photo||'';goal=act==='quote'?'insure':'';view='result';wiz.hidden=false;document.body.classList.add('wiz-open');render();if(act==='kit')setTimeout(()=>jump('order'),450)}catch(e){toast(e.error||'Could not open this ID. Please try again.')}}
 $$('[data-pet]').forEach(b=>b.addEventListener('click',()=>showPet(b.dataset.pet,b.dataset.act)));
 $('#wzClose').onclick=close;
+/* Phones: when typing, shrink the card to a slim strip and keep the field in view above the keyboard */
+const isPhone=()=>innerWidth<=900;
+function keepVisible(el){if(!el)return;setTimeout(()=>{try{el.scrollIntoView({block:'center',behavior:'smooth'})}catch(_){el.scrollIntoView()}},280)}
+if(wiz){
+  wiz.addEventListener('focusin',e=>{const t=e.target;if(isPhone()&&t.matches&&t.matches('input:not([type=checkbox]):not([type=file]),select,textarea')){document.body.classList.add('kb');keepVisible(t)}});
+  wiz.addEventListener('focusout',()=>{setTimeout(()=>{const a=document.activeElement;if(!a||!wiz.contains(a)||!a.matches('input,select,textarea'))document.body.classList.remove('kb')},120)});
+  if(window.visualViewport){const vv=window.visualViewport;const fit=()=>{if(wiz.hidden)return;if(isPhone()){wiz.style.height=vv.height+'px';wiz.style.top=vv.offsetTop+'px';const a=document.activeElement;if(a&&wiz.contains(a)&&a.matches('input,select,textarea'))keepVisible(a)}else{wiz.style.height='';wiz.style.top=''}};vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit)}
+}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!wiz.hidden)close()});
 $('#wzFlipBtn').onclick=()=>$('#wzFlip').classList.toggle('flipped');
 $('#wzSide').addEventListener('click',e=>{if(e.target.closest('.flipper'))$('#wzFlip').classList.toggle('flipped')});
@@ -323,7 +331,9 @@ function bind(){
   const dc=$('#f_docs');if(dc)dc.addEventListener('change',()=>{MEM.docs.push(...[...dc.files].map(f=>({name:f.name,file:f})));if(!S.records)S.records='yes';render(false)});
   const ky=$('#f_kyc');if(ky)ky.addEventListener('change',()=>{MEM.kycFiles.push(...[...ky.files].map(f=>({name:f.name,file:f})));render(false)});
   Q.querySelectorAll('.drop').forEach(d=>{['dragover','dragenter'].forEach(e=>d.addEventListener(e,()=>d.classList.add('over')));['dragleave','drop'].forEach(e=>d.addEventListener(e,()=>d.classList.remove('over')))});
-  Q.querySelectorAll('input.inp').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();next()}}));
+  // Keyboard "Next" moves to the next field; on the last field it continues to the next step
+  const fields=[...Q.querySelectorAll('input.inp:not([type=file]),select.inp')].filter(x=>!x.disabled);
+  fields.forEach((f,i)=>{f.setAttribute('enterkeyhint',i<fields.length-1?'next':'go');f.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const n=fields[i+1];if(n){n.focus();if(n.tagName==='SELECT'&&n.showPicker){try{n.showPicker()}catch(_){}}}else next()}})});
 }
 function refreshNext(){const id=STEPS[step];if(['photo','papers','records','kyc'].includes(id))$('#wzNext').textContent=hasInput(id)?'Continue':'Skip for now'}
 function readImg(file,cb){if(!file)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas'),s=Math.min(1,640/Math.max(img.width,img.height));c.width=img.width*s;c.height=img.height*s;c.getContext('2d').drawImage(img,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.85))};img.src=r.result};r.readAsDataURL(file)}
@@ -362,7 +372,7 @@ function reminders(){const out=[],add=(d,m)=>{const x=new Date(d);x.setMonth(x.g
 const SIZES=[['S','20–30 cm'],['M','30–40 cm'],['L','40–50 cm'],['XL','50–60 cm']];
 const KIT_PRICE=1000;
 function kitArt(nm){nm=esc(String(nm||'').slice(0,9).toUpperCase());const qr=(x,y,s)=>{let r='';const m=qrMatrix('tag'+nm+x,9);m.forEach((row,j)=>row.forEach((v,i)=>{if(v)r+=`<rect x="${x+i*s}" y="${y+j*s}" width="${s}" height="${s}"/>`}));return `<g fill="#0D1B3E">${r}</g>`};
-return `<svg viewBox="0 0 520 330" role="img" aria-label="Safety kit: reflective collar, two QR ID tags, PVC ID card and travel water bottle">
+return `<svg viewBox="0 0 520 330" role="img" aria-label="Safety kit: reflective collar, two QR ID tags, PVC ID card and one-press water bottle with a built-in drinking cup">
 <defs><linearGradient id="kS" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FBFCFE"/><stop offset=".55" stop-color="#CDD4E0"/><stop offset="1" stop-color="#97A2B4"/></linearGradient>
 <linearGradient id="kC" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B5BFF"/><stop offset="1" stop-color="#0D1B3E"/></linearGradient>
 <linearGradient id="kB" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#D3DEFB"/><stop offset=".45" stop-color="#F8FAFF"/><stop offset="1" stop-color="#BFCDF3"/></linearGradient></defs>
@@ -373,14 +383,26 @@ return `<svg viewBox="0 0 520 330" role="img" aria-label="Safety kit: reflective
 <circle cx="165" cy="184" r="12" fill="none" stroke="#97A2B4" stroke-width="6"/>
 <g transform="translate(150 192) rotate(-9)"><circle cx="0" cy="50" r="44" fill="url(#kS)" stroke="#7E8AA0" stroke-width="2.5"/><circle cx="0" cy="10" r="5" fill="#fff" stroke="#7E8AA0" stroke-width="2"/><rect x="-21" y="24" width="42" height="42" rx="6" fill="#fff"/>${qr(-18,27,4)}<text x="0" y="83" text-anchor="middle" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="10" font-weight="800" fill="#0D1B3E">${nm}</text></g>
 <g transform="translate(212 236) rotate(16)"><circle cx="-38" cy="-10" r="13" fill="url(#kS)"/><circle cx="-38" cy="10" r="13" fill="url(#kS)"/><circle cx="38" cy="-10" r="13" fill="url(#kS)"/><circle cx="38" cy="10" r="13" fill="url(#kS)"/><rect x="-40" y="-13" width="80" height="26" rx="6" fill="url(#kS)"/><text x="0" y="5" text-anchor="middle" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="12" font-weight="800" fill="#0D1B3E">${nm}</text></g>
-<g transform="translate(318 34) rotate(7)"><rect width="168" height="106" rx="13" fill="url(#kC)"/><rect x="0" y="100" width="168" height="6" fill="#FF7A2F"/><rect x="12" y="26" width="38" height="48" rx="7" fill="#FFC9A3"/><text x="60" y="40" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="15" font-weight="800" fill="#fff">${nm}</text><rect x="60" y="50" width="56" height="5" rx="2.5" fill="#fff" opacity=".6"/><rect x="60" y="61" width="42" height="5" rx="2.5" fill="#fff" opacity=".6"/><rect x="128" y="62" width="30" height="30" rx="4" fill="#fff"/>${qr(130,64,3)}<text x="12" y="16" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="8" font-weight="800" fill="#fff" opacity=".85">IndiaPetInsurance.com</text></g>
-<g transform="translate(392 150)"><rect x="12" y="0" width="38" height="26" rx="9" fill="#FF7A2F"/><rect x="2" y="20" width="58" height="150" rx="22" fill="url(#kB)" stroke="#A9B8DE" stroke-width="2"/><path d="M6 96 Q31 88 56 96 V148 a18 18 0 0 1 -18 18 H24 a18 18 0 0 1 -18 -18Z" fill="#2457F5" opacity=".18"/><path d="M60 52 h34 a8 8 0 0 1 8 8 v4 a16 16 0 0 1 -16 16 h-26z" fill="#FF7A2F"/><rect x="16" y="36" width="8" height="70" rx="4" fill="#fff" opacity=".7"/></g>
+<g transform="translate(312 18) rotate(6)"><rect width="168" height="106" rx="13" fill="url(#kC)"/><rect x="0" y="100" width="168" height="6" fill="#FF7A2F"/><rect x="12" y="26" width="38" height="48" rx="7" fill="#FFC9A3"/><text x="60" y="40" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="15" font-weight="800" fill="#fff">${nm}</text><rect x="60" y="50" width="56" height="5" rx="2.5" fill="#fff" opacity=".6"/><rect x="60" y="61" width="42" height="5" rx="2.5" fill="#fff" opacity=".6"/><rect x="128" y="62" width="30" height="30" rx="4" fill="#fff"/>${qr(130,64,3)}<text x="12" y="16" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="8" font-weight="800" fill="#fff" opacity=".85">IndiaPetInsurance.com</text></g>
+<g transform="translate(398 166) scale(.88)">
+<path d="M-8 6 h88 a6 6 0 0 1 6 6 v6 a20 20 0 0 1 -20 20 h-60 a20 20 0 0 1 -20 -20 v-6 a6 6 0 0 1 6 -6z" fill="#FF7A2F"/>
+<path d="M0 16 h72 v2 a14 14 0 0 1 -14 14 h-44 a14 14 0 0 1 -14 -14z" fill="#7FB2FF"/>
+<ellipse cx="36" cy="18" rx="30" ry="3" fill="#CFE2FF"/>
+<rect x="14" y="36" width="44" height="12" rx="4" fill="#E2602A"/>
+<rect x="8" y="46" width="56" height="128" rx="22" fill="url(#kB)" stroke="#A9B8DE" stroke-width="2"/>
+<path d="M12 92 Q36 84 60 92 V152 a18 18 0 0 1 -18 18 H30 a18 18 0 0 1 -18 -18Z" fill="#2457F5" opacity=".2"/>
+<rect x="18" y="58" width="7" height="64" rx="3.5" fill="#fff" opacity=".75"/>
+<circle cx="36" cy="74" r="11" fill="#0D1B3E"/><circle cx="36" cy="74" r="7" fill="#FF7A2F"/>
+<path d="M36 52 v-6" stroke="#2457F5" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="2 4"/>
+<g fill="#7FB2FF"><circle cx="26" cy="8" r="2.4"/><circle cx="46" cy="4" r="2"/><circle cx="36" cy="0" r="1.8"/></g>
+<g transform="translate(70 66)"><path d="M0 8 h24" stroke="#0D1B3E" stroke-width="2.5" stroke-linecap="round"/><path d="M0 8 l7 -5 M0 8 l7 5" stroke="#0D1B3E" stroke-width="2.5" stroke-linecap="round"/><text x="28" y="12" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="11" font-weight="800" fill="#0D1B3E">PRESS</text></g>
+</g>
 </svg>`}
 function kitInfoHTML(nm){return `<ul class="kit-list">
    <li><i>🏷️</i><span><b>2 hanging QR ID tags</b>Steel, engraved with ${nm}'s name and ID. One spare.</span></li>
    <li><i>✨</i><span><b>1 premium reflective collar</b>Shines in headlights on night walks.</span></li>
    <li><i>🪪</i><span><b>1 PVC ID card</b>Wallet size, with all of ${nm}'s details and QR.</span></li>
-   <li><i>💧</i><span><b>1 travel water bottle</b>With a fold-out bowl for walks and trips.</span></li></ul>`}
+   <li><i>💧</i><span><b>1 one-press travel water bottle</b>Press the button and water fills the built-in cup, so ${nm} can drink anywhere. One hand, no mess.</span></li></ul>`}
 function renderResult(){
   $('#wzSide').hidden=true;$('#wzFoot').hidden=true;$('#wzBody').style.gridTemplateColumns='1fr';$('#wzBody').style.gridTemplateRows='1fr';
   updateCard();
