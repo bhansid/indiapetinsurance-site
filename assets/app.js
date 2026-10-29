@@ -67,7 +67,11 @@ function hash(s){let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h
 function rng(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}}
 function qrMatrix(text,n=25){const r=rng(hash(text)),m=[];for(let y=0;y<n;y++){m[y]=[];for(let x=0;x<n;x++)m[y][x]=r()>.52}
   const f=(ox,oy)=>{for(let y=-1;y<8;y++)for(let x=-1;x<8;x++){const X=ox+x,Y=oy+y;if(X<0||Y<0||X>=n||Y>=n)continue;const ring=Math.max(Math.abs(x-3),Math.abs(y-3));m[Y][X]=x>=0&&y>=0&&x<7&&y<7&&ring!==2}};f(0,0);f(n-7,0);f(0,n-7);return m}
-function qrSVG(text){const m=qrMatrix(text);let r='';m.forEach((row,y)=>row.forEach((v,x)=>{if(v)r+=`M${x} ${y}h1v1h-1z`}));return `<svg viewBox="0 0 25 25" shape-rendering="crispEdges"><path d="${r}" fill="#0D1B3E"/></svg>`}
+function realQR(text){try{if(!window.qrcode)return null;const q=window.qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount(),m=[];for(let y=0;y<n;y++){m[y]=[];for(let x=0;x<n;x++)m[y][x]=q.isDark(y,x)}return m}catch(e){return null}}
+const SITE=/^https?:/.test(location.protocol)&&location.hostname!=='localhost'&&!/claude|artifact/.test(location.hostname)?location.origin:'https://indiapetinsurance.com';
+const profileURL=id=>id?`${SITE}/p/${id}`:`${SITE}/`;
+function qrFor(idNo){return realQR(profileURL(idNo))||qrMatrix(idNo||'x')}
+function qrSVG(idNo){const m=qrFor(idNo),n=m.length;let r='';m.forEach((row,y)=>row.forEach((v,x)=>{if(v)r+=`M${x} ${y}h1v1h-1z`}));return `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges" role="img" aria-label="QR code"><path d="${r}" fill="#0D1B3E"/></svg>`}
 
 /* ================= STATE ================= */
 const blank=()=>({species:'dog',name:'',breed:'',gender:'',neutered:'',dobMode:'dob',dob:'',ageY:'',ageM:'',weight:'',colour:'',marks:'',
@@ -79,7 +83,20 @@ const blank=()=>({species:'dog',name:'',breed:'',gender:'',neutered:'',dobMode:'
   pubPhone:true,pubAddr:'locality',pubVet:true,pubAllergy:true,
   cTerms:false,cWa:true,idNo:'',createdAt:''});
 let S=blank();
-const MEM={photo:'',docs:[],kycFiles:[],angles:{}}; // files stay in memory only
+const MEM={photo:'',docs:[],kycFiles:[],angles:{},pw:'',pw2:''}; // files and password stay in memory only
+/* ---------- Backend API ---------- */
+let ME={user:null,pets:[],api:false};
+async function api(path,body){
+  const opt={method:body?'POST':'GET',credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}};
+  if(body instanceof FormData)opt.body=body;else if(body){opt.body=JSON.stringify(body);opt.headers['Content-Type']='application/json'}
+  let r;try{r=await fetch('/api/'+path,opt)}catch(e){throw {offline:true}}
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!j)throw {offline:true,status:r.status};
+  if(!r.ok||!j.ok)throw {status:r.status,...j};
+  return j}
+async function refreshMe(){try{const j=await api('auth.php?action=me');ME={user:j.user,pets:j.pets||[],api:true}}catch(e){ME={user:null,pets:[],api:!e.offline}}
+  const nl=document.getElementById('navLogin');if(nl&&ME.user){nl.textContent='My account';nl.href=ME.user.role==='owner'?'/account/':'/admin/'}}
+const dataURLtoBlob=u=>{const [h,b]=u.split(','),m=h.match(/:(.*?);/)[1],bin=atob(b),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:m})};
 const SKEY='ipi-id-draft-v1';
 function save(){try{const o={...S};delete o.kycNo;localStorage.setItem(SKEY,JSON.stringify(o))}catch(e){}}
 function load(){try{const o=JSON.parse(localStorage.getItem(SKEY)||'null');if(o)S={...blank(),...o}}catch(e){}}
@@ -104,7 +121,7 @@ function cardFront(d,o={}){
     <div><div class="lbl">ID No.</div><div class="idno">${esc(d.idNo||'IPI-••-••-••••••')}</div></div>
   </div>
   <div class="badges"><span class="bdg ${vax?'on':''}">${vax?'✓':'○'} Vaccinated</span><span class="bdg ${lic?'on':''}">${lic?'✓':'○'} Licensed</span>${kci?'<span class="bdg on">✓ KCI</span>':''}<span class="bdg ${chip?'on':''}">${chip?'✓':'○'} Chip</span></div>
-  <div class="qr">${qrSVG((d.idNo||'')+nm)}</div><div class="band"></div></div>`}
+  <div class="qr">${qrSVG(d.idNo||'')}</div><div class="band"></div></div>`}
 function cardBack(d){
   const nm=d.name||'This pet';
   const phone=d.pubPhone&&d.oMobile?`+91 ${d.oMobile.slice(0,5)} ${d.oMobile.slice(5)}`:'Hidden by owner';
@@ -228,6 +245,7 @@ const VIEWS={
   ${fld('oHouse','House / flat, street',txt('oHouse','e.g. 14, Lane 3','text','autocomplete="address-line1"'),'',1)}
   <div class="grid2">${fld('oLocality','Locality',txt('oLocality','e.g. Gandhi Nagar'))}${fld('oCity','City',txt('oCity','e.g. Jammu','text','autocomplete="address-level2"'))}</div>
   <div class="grid2">${fld('oState','State / UT',`<select class="inp" id="f_oState" data-k="oState">${STATES.map(s=>`<option ${S.oState===s?'selected':''}>${s}</option>`).join('')}</select>`)}${fld('oPin','PIN code',txt('oPin','6 digits','text','inputmode="numeric" maxlength="6" autocomplete="postal-code"'))}</div>
+  ${ME.user?`<div class="note blue">✓ This ID will be saved to your account (${esc(ME.user.name)}).</div>`:`<div class="pwrow"><div class="fld"><label for="f_pw">Create a password</label><input class="inp ${errs.pw?'err':''}" id="f_pw" data-mem="pw" type="password" autocomplete="new-password" placeholder="8+ characters" value="${esc(MEM.pw)}">${errs.pw?`<span class="errm">${errs.pw}</span>`:'<span class="hint">Log in later at /account to manage the ID</span>'}</div><div class="fld"><label for="f_pw2">Repeat password</label><input class="inp ${errs.pw2?'err':''}" id="f_pw2" data-mem="pw2" type="password" autocomplete="new-password" value="${esc(MEM.pw2)}">${errs.pw2?`<span class="errm">${errs.pw2}</span>`:''}</div></div>`}
   <div class="grid2">${fld('eName','Emergency contact',txt('eName','Family member or friend'),'',1)}${fld('eMobile','Their mobile',`<div class="pfx"><span>+91</span>${txt('eMobile','10 digits','tel','inputmode="numeric" maxlength="10"')}</div>`,'',1)}</div>`,
  kyc:()=>`<span class="qn">ID proof</span><h2>Quick owner verification.</h2><p class="sub">Insurers need KYC before a policy, and municipal licences need owner ID. You can skip this now.</p>
   ${fld('kycType','ID type',`<select class="inp" id="f_kycType" data-k="kycType"><option value="">Choose one</option>${['Aadhaar card','PAN card','Driving licence','Voter ID','Passport'].map(t=>`<option ${S.kycType===t?'selected':''}>${t}</option>`).join('')}</select>`,'',1)}
@@ -243,7 +261,7 @@ const VIEWS={
   <label class="check"><input type="checkbox" data-chk="cTerms" ${S.cTerms?'checked':''}> I confirm these details are correct and agree to the Terms and Privacy Policy.</label>${errs.cTerms?`<span class="errm">${errs.cTerms}</span>`:''}
   <label class="check"><input type="checkbox" data-chk="cWa" ${S.cWa?'checked':''}> Send vaccine and deworming reminders on WhatsApp.</label>`,
  review:()=>{const rows=[['name','Name & breed',`${S.name}, ${S.breed}`],['basics','About',[S.gender==='m'?'Male':S.gender==='f'?'Female':'',ageText(S),S.weight&&S.weight+' kg',S.colour].filter(Boolean).join(' · ')||'—'],['papers','Registration',[S.lic==='yes'?'Municipal licence '+(S.licNo||''):S.lic==='applied'?'Licence applied':'No licence',S.kci==='yes'?'KCI '+S.kciNo:'',S.chip==='yes'?'Chip '+S.chipNo:''].filter(Boolean).join(' · ')],['records','Health',`${MEM.docs.length} document(s)${S.rabies?' · Rabies '+fmt(S.rabies):''}${S.conditions?' · '+S.conditions:''}`],['clinic','Clinic',S.clinicNone?'Suggest a partner clinic':[S.clinic,S.doctor&&'Dr. '+S.doctor.replace(/^dr\.?\s*/i,''),S.doctorPh&&'+91 '+S.doctorPh].filter(Boolean).join(' · ')||'—'],['owner','Owner',`${S.oName} · +91 ${S.oMobile}${S.oVerified?' ✓':''} · ${[S.oLocality,S.oCity,S.oPin].filter(Boolean).join(', ')}`],['kyc','ID proof',S.kycType?`${S.kycType}${MEM.kycFiles.length?' · uploaded':''}`:'Skipped (needed for insurance)']];
-  return `<span class="qn">Almost there</span><h2>Check ${esc(NM())}'s details.</h2><div class="review">${rows.map(([s,t,v])=>`<div class="rv"><b>${t}</b><p>${esc(v)}</p><button type="button" data-goto="${s}">Edit</button></div>`).join('')}</div>`}
+  return `<span class="qn">Almost there</span><h2>Check ${esc(NM())}'s details.</h2>${loginBox&&!ME.user?`<div class="rv" style="border-color:var(--blue);display:grid;gap:10px;grid-template-columns:1fr"><b>You already have an account</b><p>Log in to add ${esc(NM())} to it.</p><div class="grid2"><input class="inp" id="inUser" value="${esc(S.oMobile)}" placeholder="Mobile or email" autocomplete="username"><input class="inp" id="inPass" type="password" placeholder="Password" autocomplete="current-password"></div><span class="errm" id="inErr"></span><div><button class="btn btn-blue btn-sm" type="button" id="inLogin">Log in and create ID</button> <a href="/account/" class="hint">Forgot password?</a></div></div>`:''}<div class="review">${rows.map(([s,t,v])=>`<div class="rv"><b>${t}</b><p>${esc(v)}</p><button type="button" data-goto="${s}">Edit</button></div>`).join('')}</div>`}
 };
 const fmt=d=>{if(!d)return '';const x=new Date(d);return isNaN(x)?d:x.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})};
 
@@ -253,7 +271,8 @@ function validate(id){const e={},ph=/^[6-9]\d{9}$/;
   if(id==='basics'){if(!S.gender)e.gender='Please choose one.';if(S.dobMode==='dob'&&S.dob&&new Date(S.dob)>new Date())e.dob='Birth date can\'t be in the future.'}
   if(id==='papers'&&S.chip==='yes'&&S.chipNo&&!/^\d{15}$/.test(S.chipNo))e.chipNo='Microchip numbers are 15 digits.';
   if(id==='clinic'&&!S.clinicNone){if(!S.clinic.trim())e.clinic='Add the clinic name, or tick the box above.';['doctorPh','cOwnerPh','clinicPh'].forEach(k=>{if(S[k]&&!ph.test(S[k]))e[k]='Enter a valid 10-digit mobile.'})}
-  if(id==='owner'){if(!S.oName.trim())e.oName='Please add your name.';if(!ph.test(S.oMobile))e.oMobile='Enter a valid 10-digit Indian mobile.';if(S.oEmail&&!/^\S+@\S+\.\S+$/.test(S.oEmail))e.oEmail='That email looks incomplete.';if(!S.oLocality.trim())e.oLocality='Add your locality.';if(!S.oCity.trim())e.oCity='Add your city.';if(!/^\d{6}$/.test(S.oPin))e.oPin='PIN codes are 6 digits.';if(S.eMobile&&!ph.test(S.eMobile))e.eMobile='Enter a valid 10-digit mobile.'}
+  if(id==='owner'){if(!S.oName.trim())e.oName='Please add your name.';if(!ph.test(S.oMobile))e.oMobile='Enter a valid 10-digit Indian mobile.';if(S.oEmail&&!/^\S+@\S+\.\S+$/.test(S.oEmail))e.oEmail='That email looks incomplete.';if(!S.oLocality.trim())e.oLocality='Add your locality.';if(!S.oCity.trim())e.oCity='Add your city.';if(!/^\d{6}$/.test(S.oPin))e.oPin='PIN codes are 6 digits.';if(S.eMobile&&!ph.test(S.eMobile))e.eMobile='Enter a valid 10-digit mobile.';
+    if(!ME.user&&ME.api){if(MEM.pw.length<8)e.pw='Use at least 8 characters.';else if(MEM.pw!==MEM.pw2)e.pw2='Passwords don\'t match.'}}
   if(id==='kyc'&&S.kycType==='Aadhaar card'&&S.kycNo&&!/^\d{12}$/.test(S.kycNo.replace(/\s/g,'')))e.kycNo='Aadhaar numbers have 12 digits.';
   if(id==='kyc'&&S.kycType==='PAN card'&&S.kycNo&&!/^[A-Z]{5}\d{4}[A-Z]$/i.test(S.kycNo))e.kycNo='PAN looks like ABCDE1234F.';
   if(id==='privacy'&&!S.cTerms)e.cTerms='Please confirm to create the ID.';
@@ -280,6 +299,8 @@ function bind(){
   Q.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{S[b.dataset.set]=b.dataset.v;delete errs[b.dataset.set];if(b.dataset.set==='breed')flash='breed';if(b.dataset.set==='species'){S.breed=''}save();
     if(b.dataset.set==='species'||b.dataset.set==='name'&&STEPS[step]==='name'){render(false);if(b.dataset.set==='species')setTimeout(next,250);return}
     if(b.dataset.set==='breed'){render(false);setTimeout(next,350);return}render(false)}));
+  Q.querySelectorAll('[data-mem]').forEach(el=>el.addEventListener('input',()=>{MEM[el.dataset.mem]=el.value;delete errs[el.dataset.mem];el.classList.remove('err')}));
+  const lg=$('#inLogin');if(lg)lg.onclick=inlineLogin;
   Q.querySelectorAll('[data-tgl]').forEach(b=>b.addEventListener('click',()=>{S[b.dataset.tgl]=!S[b.dataset.tgl];save();render(false)}));
   Q.querySelectorAll('[data-chk]').forEach(c=>c.addEventListener('change',()=>{S[c.dataset.chk]=c.checked;delete errs[c.dataset.chk];save();render(false)}));
   Q.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>{step=STEPS.indexOf(b.dataset.goto);render()}));
@@ -287,8 +308,8 @@ function bind(){
   const rp=Q.querySelector('[data-rmphoto]');if(rp)rp.onclick=()=>{MEM.photo='';render(false)};
   const bq=$('#bq');if(bq){bq.addEventListener('input',()=>{const q=bq.value.toLowerCase().trim();$('#blist').querySelectorAll('button').forEach(b=>b.hidden=q&&!b.dataset.v.toLowerCase().includes(q));$('#blist').querySelectorAll('.grp').forEach(g=>{let n=g.nextElementSibling,any=false;while(n&&!n.classList.contains('grp')){if(!n.hidden)any=true;n=n.nextElementSibling}g.hidden=!any})})}
   const ph=$('#f_photo');if(ph)ph.addEventListener('change',()=>readImg(ph.files[0],u=>{MEM.photo=u;flash='';render(false)}));
-  const dc=$('#f_docs');if(dc)dc.addEventListener('change',()=>{MEM.docs.push(...[...dc.files].map(f=>({name:f.name})));if(!S.records)S.records='yes';render(false)});
-  const ky=$('#f_kyc');if(ky)ky.addEventListener('change',()=>{MEM.kycFiles.push(...[...ky.files].map(f=>({name:f.name})));render(false)});
+  const dc=$('#f_docs');if(dc)dc.addEventListener('change',()=>{MEM.docs.push(...[...dc.files].map(f=>({name:f.name,file:f})));if(!S.records)S.records='yes';render(false)});
+  const ky=$('#f_kyc');if(ky)ky.addEventListener('change',()=>{MEM.kycFiles.push(...[...ky.files].map(f=>({name:f.name,file:f})));render(false)});
   Q.querySelectorAll('.drop').forEach(d=>{['dragover','dragenter'].forEach(e=>d.addEventListener(e,()=>d.classList.add('over')));['dragleave','drop'].forEach(e=>d.addEventListener(e,()=>d.classList.remove('over')))});
   const so=$('#sendOtp');if(so)so.onclick=()=>{if(!/^[6-9]\d{9}$/.test(S.oMobile)){errs.oMobile='Enter a valid 10-digit Indian mobile first.';render(false);return}otpSent=true;render(false);toast('Demo: OTP "sent". Type any 4 digits.');setTimeout(()=>{const f=Q.querySelector('#ownOtp input');f&&f.focus()},50)};
   const oo=Q.querySelectorAll('#ownOtp input');oo.forEach((inp,i)=>inp.addEventListener('input',()=>{inp.value=inp.value.replace(/\D/g,'');if(inp.value&&oo[i+1])oo[i+1].focus();if([...oo].every(x=>x.value)){S.oVerified=true;save();render(false);toast('Mobile verified ✓')}}));
@@ -302,7 +323,23 @@ $('#wzNext').onclick=next;$('#wzBack').onclick=()=>{if(step>0){step--;errs={};re
 
 /* ================= RESULT ================= */
 let orderStep='', insStep='', order={prod:'combo'}, ins={plan:'complete',si:'50000',ill:'',pre:''};
-function createID(){S.createdAt=S.createdAt||new Date().toISOString();S.idNo=idNumber(S);save();view='result';render();confetti()}
+let busy=false,loginBox=false;
+async function createID(){
+  if(busy)return;busy=true;const nb=$('#wzNext');nb.disabled=true;nb.textContent='Creating ID…';
+  S.createdAt=S.createdAt||new Date().toISOString();
+  const fd=new FormData();fd.append('data',JSON.stringify(S));if(!ME.user)fd.append('password',MEM.pw);
+  if(MEM.photo)fd.append('photo',dataURLtoBlob(MEM.photo),'photo.jpg');
+  MEM.docs.forEach(d=>d.file&&fd.append('docs[]',d.file,d.name));MEM.kycFiles.forEach(d=>d.file&&fd.append('kyc[]',d.file,d.name));
+  try{const j=await api('pet.php',fd);S.idNo=j.id_no;S.saved=true;S.kycNo='';MEM.pw=MEM.pw2='';await refreshMe();finish()}
+  catch(e){
+    if(e.offline||e.code==='not_installed'){S.idNo=idNumber(S);S.saved=false;finish();toast('Preview mode: this ID was not saved to a server.');}
+    else if(e.code==='account_exists'){loginBox=true;render(false);toast(e.error)}
+    else if(e.fields){errs=e.fields;const order=['species','name','breed','basics','papers','records','clinic','owner','kyc','privacy'];const where={name:'name',breed:'breed',gender:'basics',oName:'owner',oMobile:'owner',oEmail:'owner',oPin:'owner',password:'owner',cTerms:'privacy',doctorPh:'clinic',cOwnerPh:'clinic',clinicPh:'clinic',eMobile:'owner'};const f=Object.keys(e.fields)[0];if(f==='password')errs.pw=e.fields.password;step=STEPS.indexOf(where[f]||'review');render();toast(e.error)}
+    else{toast(e.error||'Something went wrong. Please try again.')}
+  }finally{busy=false;const b=$('#wzNext');if(b)b.disabled=false}}
+function finish(){save();view='result';render();confetti()}
+async function inlineLogin(){const l=$('#inUser').value,p=$('#inPass').value,er=$('#inErr');er.textContent='';
+  try{await api('auth.php',{action:'login',login:l,password:p});await refreshMe();loginBox=false;toast('Logged in as '+ME.user.name);createID()}catch(e){er.textContent=e.error||'Could not log in.'}}
 function reminders(){const out=[],add=(d,m)=>{const x=new Date(d);x.setMonth(x.getMonth()+m);return x},now=new Date();
   const nm=S.name;
   if(S.rabies)out.push(['💉',`Anti-rabies booster`,add(S.rabies,12)]);else out.push(['💉','Add anti-rabies date',null]);
@@ -322,6 +359,7 @@ function renderResult(){
    <div class="res-hero">
      <div><span class="eyebrow" style="color:var(--green)">✓ ID created</span><h2 style="margin-top:10px">${nm} is officially somebody.</h2><p class="lede" style="margin-top:12px">Save the card, get it printed for the collar, and set up protection, all from here.</p>
        <div class="idnum" id="idSlot">${esc(S.idNo)}</div>
+       ${S.saved?`<div class="saved"><span class="ok-tag">✓ Saved to your account</span> · <a href="${profileURL(S.idNo)}" target="_blank" rel="noopener">Open QR profile</a> · <a href="/account/">My account</a></div>`:`<div class="saved">Preview only. This ID is not saved yet.</div>`}
        <div class="acts"><button class="btn btn-blue" type="button" id="dlBtn">⬇ Download card</button><button class="btn btn-saffron" type="button" data-jump="order">Order printed card</button><button class="btn btn-ghost" type="button" data-jump="insure">Protect ${nm}</button></div>
        <p class="hint" id="dlNote" style="margin-top:10px"></p>
      </div>
@@ -373,7 +411,7 @@ function bindResult(){
   $('#resFlip').onclick=()=>$('#resFlip').classList.toggle('flipped');$('#resFlipBtn').onclick=()=>$('#resFlip').classList.toggle('flipped');
   Q.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>jump(b.dataset.jump));
   Q.querySelectorAll('[data-toast]').forEach(b=>b.onclick=()=>toast(b.dataset.toast));
-  $('#addAnother').onclick=()=>{S=blank();MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';step=0;view='steps';save();Q.removeAttribute('style');render()};
+  $('#addAnother').onclick=()=>{const keep=ME.user?{oName:S.oName,oMobile:S.oMobile,oEmail:S.oEmail,oHouse:S.oHouse,oLocality:S.oLocality,oCity:S.oCity,oState:S.oState,oPin:S.oPin,eName:S.eName,eMobile:S.eMobile}:{};S={...blank(),...keep};MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';step=0;view='steps';save();Q.removeAttribute('style');render()};
   setupDownload();bindOrder();bindIns();
 }
 function bindOrder(){const b=$('#b-order');
@@ -382,14 +420,25 @@ function bindOrder(){const b=$('#b-order');
   const bk=$('#oBack');if(bk)bk.onclick=()=>{orderStep='';b.innerHTML=orderHTML();bindOrder()};
   const pl=$('#oPlace');if(pl)pl.onclick=()=>{const m=$('#oa2').value,p=$('#oa6').value,a=$('#oa3').value;
     if(!/^[6-9]\d{9}$/.test(m)){$('#oErr').textContent='Enter a valid 10-digit mobile.';return}if(!/^\d{6}$/.test(p)){$('#oErr').textContent='PIN codes are 6 digits.';return}if(!a.trim()){$('#oErr').textContent='Add a delivery address.';return}
-    order.no='ORD-'+(hash(S.idNo+Date.now())%90000+10000);orderStep='done';b.innerHTML=orderHTML();confetti(60)}}
+    pl.disabled=true;pl.textContent='Placing…';
+    const local=()=>{order.no='ORD-'+(hash(S.idNo+Date.now())%90000+10000);orderStep='done';b.innerHTML=orderHTML();confetti(60)};
+    if(!S.saved){local();return}
+    api('order.php',{id_no:S.idNo,product:order.prod,name:$('#oa1').value,mobile:m,address:a,city:$('#oa4').value,state:$('#oa5').value,pin:p})
+      .then(j=>{order.no=j.order_no;orderStep='done';b.innerHTML=orderHTML();confetti(60)})
+      .catch(e=>{pl.disabled=false;pl.textContent='Place pre-order · pay on delivery';$('#oErr').textContent=e.error||'Could not place the order. Please try again.'})}}
 function bindIns(){const b=$('#b-insure');
   b.querySelectorAll('[data-plan]').forEach(x=>x.onclick=()=>{ins.plan=x.dataset.plan;b.innerHTML=insHTML();bindIns()});
   ['si','ill','pre'].forEach(k=>b.querySelectorAll(`[data-${k}]`).forEach(x=>x.onclick=()=>{ins[k]=x.dataset[k];b.innerHTML=insHTML();bindIns()}));
   const n=$('#iNext');if(n)n.onclick=()=>{if(!ins.ill||!ins.pre){$('#iErr').textContent='Please answer both health questions.';return}insStep='docs';b.innerHTML=insHTML();bindIns()};
   const bk=$('#iBack');if(bk)bk.onclick=()=>{insStep='';b.innerHTML=insHTML();bindIns()};
   b.querySelectorAll('[data-angle]').forEach(i=>i.addEventListener('change',()=>readImg(i.files[0],u=>{MEM.angles[i.dataset.angle]=u;b.innerHTML=insHTML();bindIns()})));
-  const s=$('#iSend');if(s)s.onclick=()=>{ins.no='Q-'+(hash(S.idNo+ins.plan+Date.now())%90000+10000);insStep='done';b.innerHTML=insHTML();confetti(60)}}
+  const s=$('#iSend');if(s)s.onclick=()=>{
+    const done=no=>{ins.no=no;insStep='done';b.innerHTML=insHTML();confetti(60)};
+    if(!S.saved){done('Q-'+(hash(S.idNo+ins.plan+Date.now())%90000+10000));return}
+    s.disabled=true;s.textContent='Sending…';
+    const fd=new FormData();fd.append('data',JSON.stringify({id_no:S.idNo,plan:ins.plan,si:ins.si,ill:ins.ill,pre:ins.pre}));
+    Object.entries(MEM.angles).forEach(([k,u])=>fd.append('angle_'+k,dataURLtoBlob(u),k+'.jpg'));
+    api('quote.php',fd).then(j=>done(j.quote_no)).catch(e=>{s.disabled=false;s.textContent='Request my quote';toast(e.error||'Could not send. Please try again.')})}}
 
 /* ---- Download card as PNG (front + back) ---- */
 let dl=null;
@@ -429,7 +478,7 @@ async function renderPNG(){
   let bx=56;const bd=[['Vaccinated',!!(S.rabies||S.records==='yes')],['Licensed',S.lic==='yes'],['Chip',S.chip==='yes']];if(S.kci==='yes')bd.splice(2,0,['KCI',true]);
   c.font=`800 20px ${F}`;bd.forEach(([t,on])=>{const s=(on?'✓ ':'○ ')+t,w=c.measureText(s).width+36;c.fillStyle=on?'#fff':'rgba(255,255,255,.14)';rr(c,bx,530,w,44,22);c.fill();c.fillStyle=on?'#0E9F58':'#fff';c.fillText(s,bx+18,559);bx+=w+12});
   // QR
-  c.fillStyle='#fff';rr(c,W-56-172,H-60-172,172,172,20);c.fill();const m=qrMatrix(S.idNo+S.name),cs=148/25;c.fillStyle='#0D1B3E';m.forEach((row,y)=>row.forEach((v,x)=>{if(v)c.fillRect(W-56-172+12+x*cs,H-60-172+12+y*cs,cs+.3,cs+.3)}));
+  c.fillStyle='#fff';rr(c,W-56-172,H-60-172,172,172,20);c.fill();const m=qrFor(S.idNo),cs=148/m.length;c.fillStyle='#0D1B3E';m.forEach((row,y)=>row.forEach((v,x)=>{if(v)c.fillRect(W-56-172+12+x*cs,H-60-172+12+y*cs,cs+.3,cs+.3)}));
   // BACK
   const y0=H+G;bg(y0);
   c.fillStyle='#fff';c.font=`800 38px ${F}`;c.fillText('If found, please scan the QR',56,y0+90);c.fillText(`or call ${S.oName?S.oName.split(' ')[0]:'my family'}.`,56,y0+136);
@@ -487,4 +536,9 @@ layout();requestAnimationFrame(frame);addEventListener('resize',layout);addEvent
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);new ResizeObserver(layout).observe(document.body);
 // returning visitor nudge
 load();if(S.idNo){$$('[data-start]').forEach(b=>{if(b.closest('nav'))b.textContent=`${S.name}'s ID`})}
+refreshMe();
+function hashOpen(){if(location.hash==='#make-id'){S.idNo&&S.saved&&(S={...blank()},save());open('dog');history.replaceState(null,'',location.pathname)}}
+hashOpen();addEventListener('hashchange',hashOpen);
+// Older browsers without container query units: size ID cards from their width
+if(!(window.CSS&&CSS.supports&&CSS.supports('width','1cqw'))&&window.ResizeObserver){const ro=new ResizeObserver(es=>es.forEach(en=>en.target.style.setProperty('--cq',(en.contentRect.width/100)+'px')));const watch=()=>$$('.idc-wrap').forEach(w=>{if(!w.__ro){w.__ro=1;ro.observe(w)}});watch();new MutationObserver(watch).observe(document.body,{childList:true,subtree:true})}
 })();

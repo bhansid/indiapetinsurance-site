@@ -1,0 +1,6 @@
+# Private config and uploaded files never go to GitHub
+api/config.php
+uploads/*
+!uploads/.htaccess
+!uploads/index.php
+.DS_Store
