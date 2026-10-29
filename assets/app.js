@@ -84,6 +84,9 @@ const blank=()=>({species:'dog',name:'',breed:'',gender:'',neutered:'',dobMode:'
   cTerms:false,cWa:true,idNo:'',createdAt:''});
 let S=blank();
 const MEM={photo:'',docs:[],kycFiles:[],angles:{},pw:'',pw2:''}; // files and password stay in memory only
+/* ---------- Where did this visitor come from? (saved with the ID) ---------- */
+const SRC=(()=>{try{let s=JSON.parse(sessionStorage.getItem('ipi-src')||'null');if(!s){const u=new URLSearchParams(location.search);s={landing:location.pathname,ref:document.referrer?new URL(document.referrer).hostname:''};['utm_source','utm_medium','utm_campaign','gclid','fbclid'].forEach(k=>{const v=u.get(k);if(v)s[k]=v.slice(0,60)});sessionStorage.setItem('ipi-src',JSON.stringify(s))}return s}catch(e){return {}}})();
+function srcSummary(){const s=SRC,via=s.gclid?'Google Ads':s.fbclid?'Meta Ads':s.utm_source?s.utm_source+(s.utm_medium?'/'+s.utm_medium:''):s.ref&&!s.ref.includes(location.hostname)?s.ref:'direct';return `${S.entry==='insurance'?'Insurance quote':'Free ID'} · landed on ${s.landing||'/'} · ${via}${s.utm_campaign?' · '+s.utm_campaign:''}`}
 /* ---------- Backend API ---------- */
 let ME={user:null,pets:[],api:false};
 async function api(path,body){
@@ -137,7 +140,8 @@ function cardBack(d){
   </div><div class="mrz">${esc(mrz)}</div><div class="band"></div></div>`}
 function sample(sp,name,breed){return {...blank(),species:sp,name,breed,gender:'m',neutered:'yes',dobMode:'age',ageY:'3',rabies:'2026-03-10',records:'yes',lic:'yes',chip:'yes',oName:'Rahul Sharma',oMobile:'9876543210',oLocality:'Gandhi Nagar',oCity:'Jammu',oState:'Jammu and Kashmir',clinic:'Partner clinic, Jammu',doctor:'Mehta',conditions:'Allergic to chicken',idNo:'IPI-JK-26-418302'}}
 
-/* ================= LANDING ================= */
+/* ================= LANDING (home page only) ================= */
+if($('#heroCard')){
 $('#heroCard').innerHTML=cardFront(sample('dog','Bruno','Golden Retriever'),{pfx:'h'});
 $('#exFront').innerHTML=cardFront(sample('dog','Bruno','Golden Retriever'),{pfx:'e'});
 $('#exBack').innerHTML=cardBack(sample('dog','Bruno','Golden Retriever'));
@@ -171,13 +175,15 @@ let pn=0;const MM=['Tap to protect a dog or cat.','One protected.','Two protecte
 $('#protectBtn').onclick=()=>{if(pn>=5){pn=0;$$('.pawslot').forEach(p=>p.classList.remove('on'));$('#mmsg').textContent=MM[0];$('#protectBtn').textContent='Protect one';return}$('#ps'+pn).classList.add('on');pn++;$('#mmsg').textContent=MM[pn];if(pn===5){setTimeout(()=>$('#ps5').classList.add('on'),400);$('#protectBtn').textContent='Start again'}};
 $('#vetBtn').onclick=()=>toast('Clinic sign-up opens at launch. For now, WhatsApp us to join the Jammu pilot.');
 
+}
+
 /* ================= WIZARD ================= */
 const STEPS=['species','name','breed','basics','photo','papers','records','clinic','owner','kyc','privacy','review'];
 const TITLES={species:'Dog or cat',name:'Name',breed:'Breed',basics:'About',photo:'Photo',papers:'Registration',records:'Health records',clinic:'Primary clinic',owner:'Your details',kyc:'ID proof',privacy:'Privacy',review:'Review'};
 let step=0, goal='', flash='', errs={}, view='steps', otpSent=false;
 const wiz=$('#wiz'), Q=$('#wzQ');
 function firstIncomplete(){for(let i=0;i<STEPS.length;i++){if(Object.keys(validate(STEPS[i])).length)return i}return STEPS.length-1}
-function open(spc,g){load();goal=g||'';errs={};
+function open(spc,g){load();goal=g||'';errs={};if(goal==='insure'&&!S.idNo)S.entry='insurance';else if(!S.name&&!S.idNo)S.entry=S.entry||'id';
   if(S.idNo&&S.cTerms){view='result'}else{view='steps';if(!S.name){if(spc){S.species=spc;step=1}else step=0}else step=firstIncomplete()}
   wiz.hidden=false;document.body.classList.add('wiz-open');render();setTimeout(()=>{const f=Q.querySelector('input,button');f&&f.focus({preventScroll:true})},60)}
 function close(){save();wiz.hidden=true;document.body.classList.remove('wiz-open')}
@@ -197,7 +203,7 @@ const drop=(id,label,sub,multi,accept='image/*,.pdf')=>`<label class="drop" for=
 const filesHTML=(arr,key)=>arr.length?`<div class="files">${arr.map((f,i)=>`<span class="file">✓ <span>${esc(f.name)}</span><button type="button" data-rm="${key}" data-i="${i}" aria-label="Remove ${esc(f.name)}">×</button></span>`).join('')}</div>`:'';
 
 const VIEWS={
- species:()=>`<span class="qn">Let's start</span><h2>Who's getting the ID today?</h2>
+ species:()=>(S.entry==='insurance'?`<span class="qn">Your insurance quote</span><h2>Who are we protecting?</h2><p class="sub">Answer once. A licensed advisor sends your quote on WhatsApp, and you get a free QR ID card along the way.</p>`:`<span class="qn">Let's start</span><h2>Who's getting the ID today?</h2>`)+`
   <div class="species">${['dog','cat'].map(s=>`<button type="button" class="choice" data-set="species" data-v="${s}" aria-pressed="${S.species===s}">${portraitSVG(s,'','sp'+s)}<span>${s==='dog'?'A dog':'A cat'}</span></button>`).join('')}</div>`,
  name:()=>`<span class="qn">Nice to meet you</span><h2>What's your ${sp()}'s name?</h2>
   ${txt('name',sp()==='dog'?'e.g. Sheru':'e.g. Simba','text','maxlength="16" autocomplete="off"').replace('class="inp ','class="inp big ')}${errs.name?`<span class="errm">${errs.name}</span>`:''}
@@ -283,14 +289,14 @@ function updateCard(){
   $('#wzFront').innerHTML=cardFront(d,{photo:MEM.photo,flash,pfx:'w'});$('#wzBackCard').innerHTML=cardBack(d);flash='';
   const p=view==='result'?100:pct();$('#wzPct').textContent=p+'%';
   const pi=view==='result'?STEPS.length:step;$('#wzBar').style.width=(view==='result'?100:Math.max(4,(step/STEPS.length)*100))+'%';
-  $('#wzLabel').textContent=view==='result'?`${S.name}'s ID is ready`:`Step ${step+1} of ${STEPS.length} · ${TITLES[STEPS[step]]}`;
+  $('#wzLabel').textContent=view==='result'?`${S.name}'s ID is ready`:`${S.entry==='insurance'?'Quote · ':''}Step ${step+1} of ${STEPS.length} · ${TITLES[STEPS[step]]}`;
 }
 function render(anim=true){
   if(view==='result'){renderResult();return}
   $('#wzBody').style.gridTemplateColumns='';$('#wzBody').style.gridTemplateRows='';$('#wzSide').hidden=false;$('#wzFoot').hidden=false;Q.removeAttribute('style');
   const id=STEPS[step];Q.className='wz-q'+(anim?' anim':'');Q.innerHTML=VIEWS[id]();
   $('#wzBack').style.visibility=step===0?'hidden':'visible';
-  $('#wzNext').textContent=id==='review'?`Create ${S.name||'the'} ID ✨`:(['photo','papers','records','kyc'].includes(id)&&!hasInput(id)?'Skip for now':'Continue');
+  $('#wzNext').textContent=id==='review'?(S.entry==='insurance'?`Continue to ${S.name?S.name+"'s":'your'} quote →`:`Create ${S.name||'the'} ID ✨`):(['photo','papers','records','kyc'].includes(id)&&!hasInput(id)?'Skip for now':'Continue');
   bind();updateCard();
 }
 function hasInput(id){return id==='photo'?!!MEM.photo:id==='papers'?!!(S.lic||S.kci||S.chip):id==='records'?!!(S.records||S.rabies):id==='kyc'?!!S.kycType:true}
@@ -322,11 +328,12 @@ function next(){const id=STEPS[step];errs=validate(id);if(Object.keys(errs).leng
 $('#wzNext').onclick=next;$('#wzBack').onclick=()=>{if(step>0){step--;errs={};render();$('#wzPane').scrollTop=0}};
 
 /* ================= RESULT ================= */
-let orderStep='', insStep='', order={prod:'combo'}, ins={plan:'complete',si:'50000',ill:'',pre:''};
+let orderStep='', insStep='', order={prod:'kit',size:'M'}, ins={plan:'complete',si:'50000',ill:'',pre:''};
 let busy=false,loginBox=false;
 async function createID(){
   if(busy)return;busy=true;const nb=$('#wzNext');nb.disabled=true;nb.textContent='Creating ID…';
   S.createdAt=S.createdAt||new Date().toISOString();
+  S.src=srcSummary();
   const fd=new FormData();fd.append('data',JSON.stringify(S));if(!ME.user)fd.append('password',MEM.pw);
   if(MEM.photo)fd.append('photo',dataURLtoBlob(MEM.photo),'photo.jpg');
   MEM.docs.forEach(d=>d.file&&fd.append('docs[]',d.file,d.name));MEM.kycFiles.forEach(d=>d.file&&fd.append('kyc[]',d.file,d.name));
@@ -348,25 +355,47 @@ function reminders(){const out=[],add=(d,m)=>{const x=new Date(d);x.setMonth(x.g
   out.push(['🩺','Annual health check',add(S.createdAt||now,12)]);
   if(S.lic==='yes')out.push(['📄','Municipal licence renewal',add(S.createdAt||now,12)]);
   return out.map(([i,t,d])=>{const due=d?Math.round((d-now)/864e5):null;return `<div class="rm"><i>${i}</i><div><b>${t}</b><span>${d?fmt(d.toISOString().slice(0,10)):'We\'ll ask your vet'}${S.cWa?' · WhatsApp reminder from '+(S.clinic||'your clinic'):''}</span></div>${due===null?'<span class="st due">Missing</span>':due<0?'<span class="st due">Overdue</span>':due<30?`<span class="st due">In ${due} days</span>`:'<span class="st ok">Scheduled</span>'}</div>`}).join('')}
-const PRODS={card:['Smart PVC ID card','Wallet-size, waterproof, QR on the back','card'],tag:['Steel QR collar tag','Laser-engraved, scratch-proof','tag'],combo:['Card + steel tag','Best for lost-and-found','combo']};
-function prodArt(k){const t=`<g transform="translate(70 18)"><circle cx="20" cy="4" r="5" fill="none" stroke="#8896B8" stroke-width="3"/><path d="M20 10c18 0 22 14 22 24 0 16-10 26-22 26S-2 50-2 34C-2 24 2 10 20 10z" fill="#C9D2E6"/><rect x="8" y="24" width="24" height="24" rx="4" fill="#fff"/><rect x="11" y="27" width="7" height="7" fill="#0D1B3E"/><rect x="22" y="37" width="7" height="7" fill="#0D1B3E"/></g>`,c=`<g transform="translate(10 28) rotate(-6)"><rect width="96" height="60" rx="8" fill="#1739B0"/><rect x="6" y="10" width="22" height="28" rx="4" fill="#FFC9A3"/><rect x="34" y="12" width="40" height="6" rx="3" fill="#fff"/><rect x="34" y="24" width="28" height="4" rx="2" fill="#fff" opacity=".6"/><rect x="72" y="36" width="18" height="18" rx="2" fill="#fff"/><rect x="0" y="56" width="96" height="4" fill="#FF7A2F"/></g>`;return `<svg viewBox="0 0 140 100" width="140" height="100">${k==='card'?c.replace('translate(10 28)','translate(22 20)'):k==='tag'?t.replace('translate(70 18)','translate(50 14)'):c+t}</svg>`}
+const SIZES=[['S','20–30 cm'],['M','30–40 cm'],['L','40–50 cm'],['XL','50–60 cm']];
+const KIT_PRICE=1000;
+function kitArt(nm){nm=esc(String(nm||'').slice(0,9).toUpperCase());const qr=(x,y,s)=>{let r='';const m=qrMatrix('tag'+nm+x,9);m.forEach((row,j)=>row.forEach((v,i)=>{if(v)r+=`<rect x="${x+i*s}" y="${y+j*s}" width="${s}" height="${s}"/>`}));return `<g fill="#0D1B3E">${r}</g>`};
+return `<svg viewBox="0 0 520 330" role="img" aria-label="Safety kit: reflective collar, two QR ID tags, PVC ID card and travel water bottle">
+<defs><linearGradient id="kS" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FBFCFE"/><stop offset=".55" stop-color="#CDD4E0"/><stop offset="1" stop-color="#97A2B4"/></linearGradient>
+<linearGradient id="kC" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B5BFF"/><stop offset="1" stop-color="#0D1B3E"/></linearGradient>
+<linearGradient id="kB" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#D3DEFB"/><stop offset=".45" stop-color="#F8FAFF"/><stop offset="1" stop-color="#BFCDF3"/></linearGradient></defs>
+<ellipse cx="260" cy="318" rx="230" ry="10" fill="#0D1B3E" opacity=".08"/>
+<ellipse cx="165" cy="112" rx="128" ry="60" fill="none" stroke="#0D1B3E" stroke-width="30"/>
+<ellipse cx="165" cy="112" rx="128" ry="60" fill="none" stroke="#EEF2FA" stroke-width="5" stroke-dasharray="16 10"/>
+<g transform="translate(24 96)"><rect width="36" height="34" rx="7" fill="url(#kS)" stroke="#7E8AA0" stroke-width="3"/><rect x="15" y="-4" width="6" height="42" rx="3" fill="#7E8AA0"/></g>
+<circle cx="165" cy="184" r="12" fill="none" stroke="#97A2B4" stroke-width="6"/>
+<g transform="translate(150 192) rotate(-9)"><circle cx="0" cy="50" r="44" fill="url(#kS)" stroke="#7E8AA0" stroke-width="2.5"/><circle cx="0" cy="10" r="5" fill="#fff" stroke="#7E8AA0" stroke-width="2"/><rect x="-21" y="24" width="42" height="42" rx="6" fill="#fff"/>${qr(-18,27,4)}<text x="0" y="83" text-anchor="middle" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="10" font-weight="800" fill="#0D1B3E">${nm}</text></g>
+<g transform="translate(212 236) rotate(16)"><circle cx="-38" cy="-10" r="13" fill="url(#kS)"/><circle cx="-38" cy="10" r="13" fill="url(#kS)"/><circle cx="38" cy="-10" r="13" fill="url(#kS)"/><circle cx="38" cy="10" r="13" fill="url(#kS)"/><rect x="-40" y="-13" width="80" height="26" rx="6" fill="url(#kS)"/><text x="0" y="5" text-anchor="middle" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="12" font-weight="800" fill="#0D1B3E">${nm}</text></g>
+<g transform="translate(318 34) rotate(7)"><rect width="168" height="106" rx="13" fill="url(#kC)"/><rect x="0" y="100" width="168" height="6" fill="#FF7A2F"/><rect x="12" y="26" width="38" height="48" rx="7" fill="#FFC9A3"/><text x="60" y="40" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="15" font-weight="800" fill="#fff">${nm}</text><rect x="60" y="50" width="56" height="5" rx="2.5" fill="#fff" opacity=".6"/><rect x="60" y="61" width="42" height="5" rx="2.5" fill="#fff" opacity=".6"/><rect x="128" y="62" width="30" height="30" rx="4" fill="#fff"/>${qr(130,64,3)}<text x="12" y="16" font-family="Plus Jakarta Sans,Arial,sans-serif" font-size="8" font-weight="800" fill="#fff" opacity=".85">IndiaPetInsurance.com</text></g>
+<g transform="translate(392 150)"><rect x="12" y="0" width="38" height="26" rx="9" fill="#FF7A2F"/><rect x="2" y="20" width="58" height="150" rx="22" fill="url(#kB)" stroke="#A9B8DE" stroke-width="2"/><path d="M6 96 Q31 88 56 96 V148 a18 18 0 0 1 -18 18 H24 a18 18 0 0 1 -18 -18Z" fill="#2457F5" opacity=".18"/><path d="M60 52 h34 a8 8 0 0 1 8 8 v4 a16 16 0 0 1 -16 16 h-26z" fill="#FF7A2F"/><rect x="16" y="36" width="8" height="70" rx="4" fill="#fff" opacity=".7"/></g>
+</svg>`}
+function kitInfoHTML(nm){return `<ul class="kit-list">
+   <li><i>🏷️</i><span><b>2 hanging QR ID tags</b>Steel, engraved with ${nm}'s name and ID. One spare.</span></li>
+   <li><i>✨</i><span><b>1 premium reflective collar</b>Shines in headlights on night walks.</span></li>
+   <li><i>🪪</i><span><b>1 PVC ID card</b>Wallet size, with all of ${nm}'s details and QR.</span></li>
+   <li><i>💧</i><span><b>1 travel water bottle</b>With a fold-out bowl for walks and trips.</span></li></ul>`}
 function renderResult(){
   $('#wzSide').hidden=true;$('#wzFoot').hidden=true;$('#wzBody').style.gridTemplateColumns='1fr';$('#wzBody').style.gridTemplateRows='1fr';
   updateCard();
-  const d={...S};const nm=esc(S.name);
+  if(!order.sizeSet){order.size=S.species==='cat'?'S':(/Shih|Pug|Pomeranian|Chihuahua|Maltese|Yorkshire|Papillon|Pekingese|Toy|Miniature|Lhasa|Bichon/i.test(S.breed)?'S':/Great Dane|Mastiff|Saint Bernard|Newfoundland|Shepherd|Rottweiler|Doberman|Cane Corso|Bully Kutta|Gaddi|Bakharwal|Leonberger|Malamute/i.test(S.breed)?'L':'M')}
+  const d={...S};const nm=esc(S.name);const ins1=S.entry==='insurance';
   Q.className='wz-q';Q.style.maxWidth='none';Q.style.padding='0';
+  const kitBlk=`<div class="blk kitblk" id="b-order">${orderHTML()}</div>`, insBlk=`<div class="blk hl" id="b-insure">${insHTML()}</div>`;
   Q.innerHTML=`<div class="res">
    <div class="res-hero">
-     <div><span class="eyebrow" style="color:var(--green)">✓ ID created</span><h2 style="margin-top:10px">${nm} is officially somebody.</h2><p class="lede" style="margin-top:12px">Save the card, get it printed for the collar, and set up protection, all from here.</p>
+     <div><span class="eyebrow" style="color:var(--green)">✓ ID created</span><h2 style="margin-top:10px">Congratulations! ${nm}'s ID is ready.</h2><p class="lede" style="margin-top:12px">${nm} now has a unique ID number, a scan-to-call QR profile and a health record. ${ins1?'Your quote request is just below.':'Now put it on the collar.'}</p>
        <div class="idnum" id="idSlot">${esc(S.idNo)}</div>
        ${S.saved?`<div class="saved"><span class="ok-tag">✓ Saved to your account</span> · <a href="${profileURL(S.idNo)}" target="_blank" rel="noopener">Open QR profile</a> · <a href="/account/">My account</a></div>`:`<div class="saved">Preview only. This ID is not saved yet.</div>`}
-       <div class="acts"><button class="btn btn-blue" type="button" id="dlBtn">⬇ Download card</button><button class="btn btn-saffron" type="button" data-jump="order">Order printed card</button><button class="btn btn-ghost" type="button" data-jump="insure">Protect ${nm}</button></div>
-       <p class="hint" id="dlNote" style="margin-top:10px"></p>
+       <div class="acts">${ins1?`<button class="btn btn-blue" type="button" data-jump="insure">Get ${nm}'s quote ↓</button>`:''}<button class="btn btn-saffron kit-cta" type="button" data-jump="order">Order ${nm}'s safety kit · ₹${KIT_PRICE.toLocaleString('en-IN')}</button></div>
+       <div class="dlrow"><button class="dl-link" type="button" id="dlBtn">⬇ Download digital card (PNG)</button></div>
+       <p class="hint" id="dlNote" style="margin-top:6px"></p>
      </div>
      <div style="display:grid;gap:10px;justify-items:center"><div class="flipper" id="resFlip" style="max-width:460px"><div class="in"><div class="idc-wrap">${cardFront(d,{photo:MEM.photo,pfx:'r'})}</div><div class="idc-wrap b">${cardBack(d)}</div></div></div><button class="fliphint" type="button" id="resFlipBtn">Flip to see the back</button></div>
    </div>
-   <div class="blk" id="b-order">${orderHTML()}</div>
-   <div class="blk hl" id="b-insure">${insHTML()}</div>
+   ${ins1?insBlk+kitBlk:kitBlk+insBlk}
    <div class="blk"><div class="blk-h"><div><span class="eyebrow">Reminders</span><h3>We'll remember ${nm}'s dates</h3></div><span class="hint">Suggested schedule. Your vet can change it.</span></div><div class="rem">${reminders()}</div></div>
    <div class="blk"><div class="blk-h"><div><span class="eyebrow">More for ${nm}</span><h3>Things owners add next</h3></div></div><div class="upsell">
      ${S.neutered==='no'?`<div class="up"><b>Spay / neuter at a partner clinic</b><span>Members get a discount at participating clinics after a 30-day wait.</span><button class="btn btn-ghost btn-sm" type="button" data-toast="We'll WhatsApp you partner clinic slots at launch.">Show me clinics</button></div>`:''}
@@ -376,19 +405,21 @@ function renderResult(){
    </div></div>
   </div>`;
   bindResult();
-  if(goal==='insure'){goal='';setTimeout(()=>jump('insure'),400)}
+  if(goal==='insure'){goal='';setTimeout(()=>jump('insure'),500)}
 }
-function orderHTML(){
-  if(orderStep==='done')return `<div class="blk-h"><div><span class="eyebrow">Printed card</span><h3>Pre-order placed</h3></div></div><div class="done-msg">✓ Order ${esc(order.no)} reserved: ${esc(PRODS[order.prod][0])} for ${esc(S.name)}. We'll confirm the price and dispatch on WhatsApp at launch. Pay on delivery.</div>`;
-  if(orderStep==='addr')return `<div class="blk-h"><div><span class="eyebrow">Printed card · delivery</span><h3>Where should we send it?</h3></div><span class="chip">${esc(PRODS[order.prod][0])}</span></div>
-   <div class="grid2"><div class="fld"><label for="oa1">Name</label><input class="inp" id="oa1" value="${esc(S.oName)}"></div><div class="fld"><label for="oa2">Mobile</label><div class="pfx"><span>+91</span><input class="inp" id="oa2" inputmode="numeric" maxlength="10" value="${esc(S.oMobile)}"></div></div></div>
-   <div class="fld"><label for="oa3">Address</label><input class="inp" id="oa3" value="${esc([S.oHouse,S.oLocality].filter(Boolean).join(', '))}"></div>
+function orderHTML(){const nm=esc(S.name),P=`₹${KIT_PRICE.toLocaleString('en-IN')}`;
+  if(orderStep==='done')return `<div class="kit-done"><span class="eyebrow" style="color:var(--green)">✓ Order placed</span><h3>${nm}'s safety kit is ordered.</h3><div class="done-msg">Order ${esc(order.no)}: safety kit with ${esc(order.size)} collar for ${nm}. Total ${P} including delivery, payable on delivery. We'll confirm dispatch on WhatsApp.</div></div>`;
+  if(orderStep==='addr')return `<div class="blk-h"><div><span class="eyebrow saffron">Safety kit · delivery</span><h3>Where should we deliver ${nm}'s kit?</h3></div><span class="chip">${esc(order.size)} collar · ${P}</span></div>
+   <div class="grid2"><div class="fld"><label for="oa1">Name</label><input class="inp" id="oa1" value="${esc(S.oName)}" autocomplete="name"></div><div class="fld"><label for="oa2">Mobile</label><div class="pfx"><span>+91</span><input class="inp" id="oa2" inputmode="numeric" maxlength="10" value="${esc(S.oMobile)}" autocomplete="tel-national"></div></div></div>
+   <div class="fld"><label for="oa3">Address</label><input class="inp" id="oa3" value="${esc([S.oHouse,S.oLocality].filter(Boolean).join(', '))}" autocomplete="street-address"></div>
    <div class="grid3"><div class="fld"><label for="oa4">City</label><input class="inp" id="oa4" value="${esc(S.oCity)}"></div><div class="fld"><label for="oa5">State</label><input class="inp" id="oa5" value="${esc(S.oState)}"></div><div class="fld"><label for="oa6">PIN</label><input class="inp" id="oa6" inputmode="numeric" maxlength="6" value="${esc(S.oPin)}"></div></div>
+   <div class="kit-total"><span>Safety kit (${esc(order.size)} collar)</span><span>${P}</span><span>Delivery</span><span class="free">Included</span><b>Total, pay on delivery</b><b>${P}</b></div>
    <span class="errm" id="oErr"></span>
-   <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-ghost" type="button" id="oBack">Back</button><button class="btn btn-saffron" type="button" id="oPlace">Place pre-order · pay on delivery</button></div>`;
-  return `<div class="blk-h"><div><span class="eyebrow">Printed card</span><h3>Put ${esc(S.name)}'s ID on the collar</h3></div><span class="hint">Expected ₹200–300 per item. Final price at launch.</span></div>
-   <div class="prods">${Object.entries(PRODS).map(([k,[t,s]])=>`<button type="button" class="prod" data-prod="${k}" aria-pressed="${order.prod===k}"><div class="art">${prodArt(k)}</div><b>${t}</b><span>${s}</span></button>`).join('')}</div>
-   <div><button class="btn btn-saffron" type="button" id="oNext">Continue to delivery</button></div>`}
+   <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-ghost" type="button" id="oBack">Back</button><button class="btn btn-saffron" type="button" id="oPlace">Place order · ${P} on delivery</button></div>`;
+  return `<div class="kit"><div class="kit-art">${kitArt(S.name)}<span class="kit-badge">${P}<small>incl. delivery</small></span></div>
+   <div class="kit-info"><span class="eyebrow saffron">${nm}'s safety kit</span><h3>Everything ${nm} needs to find the way home.</h3>${kitInfoHTML(nm)}
+   <div class="fld"><span class="lb">Collar size</span><div class="pills">${SIZES.map(([k,c])=>`<button type="button" class="pill" data-size="${k}" aria-pressed="${order.size===k}">${k} <small style="font-weight:600;opacity:.75">${c}</small></button>`).join('')}</div><span class="hint">Measure around ${nm}'s neck and add two fingers of space.</span></div>
+   <div class="kit-buy"><div><b>${P}</b><span>Including delivery · Pay on delivery</span></div><button class="btn btn-saffron kit-cta" type="button" id="oNext">Order the kit →</button></div></div></div>`}
 function insHTML(){const nm=esc(S.name);
   if(insStep==='done')return `<div class="blk-h"><div><span class="eyebrow">Insurance</span><h3>Quote requested for ${nm}</h3></div></div><div class="done-msg">✓ Request ${esc(ins.no)}: ${ins.plan==='complete'?'Complete':'Essential'} plan, ₹${(+ins.si).toLocaleString('en-IN')} cover. A licensed advisor will WhatsApp your exact premium at launch.</div><p class="hint">The insurer decides cover and price after reviewing the details and photos.</p>`;
   if(insStep==='docs'){const A=['Front','Back','Left','Right','Top'];return `<div class="blk-h"><div><span class="eyebrow">Insurance · step 2 of 2</span><h3>Photos the insurer may ask for</h3></div></div>
@@ -411,21 +442,21 @@ function bindResult(){
   $('#resFlip').onclick=()=>$('#resFlip').classList.toggle('flipped');$('#resFlipBtn').onclick=()=>$('#resFlip').classList.toggle('flipped');
   Q.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>jump(b.dataset.jump));
   Q.querySelectorAll('[data-toast]').forEach(b=>b.onclick=()=>toast(b.dataset.toast));
-  $('#addAnother').onclick=()=>{const keep=ME.user?{oName:S.oName,oMobile:S.oMobile,oEmail:S.oEmail,oHouse:S.oHouse,oLocality:S.oLocality,oCity:S.oCity,oState:S.oState,oPin:S.oPin,eName:S.eName,eMobile:S.eMobile}:{};S={...blank(),...keep};MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';step=0;view='steps';save();Q.removeAttribute('style');render()};
+  $('#addAnother').onclick=()=>{order={prod:'kit',size:'M'};const keep=ME.user?{oName:S.oName,oMobile:S.oMobile,oEmail:S.oEmail,oHouse:S.oHouse,oLocality:S.oLocality,oCity:S.oCity,oState:S.oState,oPin:S.oPin,eName:S.eName,eMobile:S.eMobile}:{};S={...blank(),...keep};MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';step=0;view='steps';save();Q.removeAttribute('style');render()};
   setupDownload();bindOrder();bindIns();
 }
 function bindOrder(){const b=$('#b-order');
-  b.querySelectorAll('[data-prod]').forEach(x=>x.onclick=()=>{order.prod=x.dataset.prod;b.innerHTML=orderHTML();bindOrder()});
-  const n=$('#oNext');if(n)n.onclick=()=>{orderStep='addr';b.innerHTML=orderHTML();bindOrder()};
+  b.querySelectorAll('[data-size]').forEach(x=>x.onclick=()=>{order.size=x.dataset.size;order.sizeSet=true;b.innerHTML=orderHTML();bindOrder()});
+  const n=$('#oNext');if(n)n.onclick=()=>{orderStep='addr';b.innerHTML=orderHTML();bindOrder();jump('order')};
   const bk=$('#oBack');if(bk)bk.onclick=()=>{orderStep='';b.innerHTML=orderHTML();bindOrder()};
-  const pl=$('#oPlace');if(pl)pl.onclick=()=>{const m=$('#oa2').value,p=$('#oa6').value,a=$('#oa3').value;
+  const pl=$('#oPlace');if(pl)pl.onclick=()=>{const m=$('#oa2').value.replace(/\D/g,''),p=$('#oa6').value.replace(/\D/g,''),a=$('#oa3').value;
     if(!/^[6-9]\d{9}$/.test(m)){$('#oErr').textContent='Enter a valid 10-digit mobile.';return}if(!/^\d{6}$/.test(p)){$('#oErr').textContent='PIN codes are 6 digits.';return}if(!a.trim()){$('#oErr').textContent='Add a delivery address.';return}
     pl.disabled=true;pl.textContent='Placing…';
-    const local=()=>{order.no='ORD-'+(hash(S.idNo+Date.now())%90000+10000);orderStep='done';b.innerHTML=orderHTML();confetti(60)};
-    if(!S.saved){local();return}
-    api('order.php',{id_no:S.idNo,product:order.prod,name:$('#oa1').value,mobile:m,address:a,city:$('#oa4').value,state:$('#oa5').value,pin:p})
-      .then(j=>{order.no=j.order_no;orderStep='done';b.innerHTML=orderHTML();confetti(60)})
-      .catch(e=>{pl.disabled=false;pl.textContent='Place pre-order · pay on delivery';$('#oErr').textContent=e.error||'Could not place the order. Please try again.'})}}
+    const ok=no=>{order.no=no;orderStep='done';b.innerHTML=orderHTML();confetti(90);jump('order')};
+    if(!S.saved){ok('ORD-'+(hash(S.idNo+Date.now())%90000+10000));return}
+    api('order.php',{id_no:S.idNo,product:'kit',size:order.size,name:$('#oa1').value,mobile:m,address:a,city:$('#oa4').value,state:$('#oa5').value,pin:p})
+      .then(j=>ok(j.order_no))
+      .catch(e=>{pl.disabled=false;pl.textContent=`Place order · ₹${KIT_PRICE.toLocaleString('en-IN')} on delivery`;$('#oErr').textContent=e.error||'Could not place the order. Please try again.'})}}
 function bindIns(){const b=$('#b-insure');
   b.querySelectorAll('[data-plan]').forEach(x=>x.onclick=()=>{ins.plan=x.dataset.plan;b.innerHTML=insHTML();bindIns()});
   ['si','ill','pre'].forEach(k=>b.querySelectorAll(`[data-${k}]`).forEach(x=>x.onclick=()=>{ins[k]=x.dataset[k];b.innerHTML=insHTML();bindIns()}));
@@ -498,7 +529,8 @@ function confetti(n=160){if(reduce)return;const cv=$('#confetti');cv.hidden=fals
   const cols=['#2457F5','#FF7A2F','#0E9F58','#FFC94A','#FFFFFF'];const P=Array.from({length:n},()=>({x:innerWidth/2+(Math.random()-.5)*200,y:innerHeight*.35,vx:(Math.random()-.5)*16,vy:-Math.random()*14-4,r:Math.random()*6+4,c:cols[Math.random()*5|0],a:Math.random()*6,va:(Math.random()-.5)*.4}));let t=0;
   (function f(){c.clearRect(0,0,cv.width,cv.height);P.forEach(p=>{p.vy+=.4;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.a+=p.va;c.save();c.translate(p.x,p.y);c.rotate(p.a);c.fillStyle=p.c;c.fillRect(-p.r,-p.r/2,p.r*2,p.r);c.restore()});if(++t<150)requestAnimationFrame(f);else{c.clearRect(0,0,cv.width,cv.height);cv.hidden=true}})()}
 
-/* ================= WALKING PETS ================= */
+/* ================= WALKING PETS (home page only) ================= */
+if($('#duo')){
 $('#duoSvg').innerHTML=`<g>${dogArt('d')}</g><g transform="translate(318 20) scale(.92)">${catArt('c')}</g>`;
 const duo=$('#duo'),flipEl=duo.querySelector('.flip'),lane=$('#lane'),bubble=$('#bubble'),spot=$('#spot'),hero=$('#top');
 const legs=[...duo.querySelectorAll('[data-leg]')];
@@ -535,7 +567,8 @@ duo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDef
 layout();requestAnimationFrame(frame);addEventListener('resize',layout);addEventListener('load',layout);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);new ResizeObserver(layout).observe(document.body);
 // returning visitor nudge
-load();if(S.idNo){$$('[data-start]').forEach(b=>{if(b.closest('nav'))b.textContent=`${S.name}'s ID`})}
+}
+load();if(S.idNo){$$('[data-start]').forEach(b=>{if(b.closest('nav')&&!b.dataset.goal)b.textContent=`${S.name}'s ID`})}
 refreshMe();
 function hashOpen(){if(location.hash==='#make-id'){S.idNo&&S.saved&&(S={...blank()},save());open('dog');history.replaceState(null,'',location.pathname)}}
 hashOpen();addEventListener('hashchange',hashOpen);

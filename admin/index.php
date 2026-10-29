@@ -34,6 +34,8 @@ function fmt_dt(?string $d): string { return $d ? date('d M Y, g:i a', strtotime
 const ORDER_STATUS = ['new', 'confirmed', 'printed', 'shipped', 'delivered', 'cancelled'];
 const QUOTE_STATUS = ['new', 'contacted', 'quoted', 'converted', 'closed'];
 const PRODUCTS = ['card' => 'PVC card', 'tag' => 'Steel tag', 'combo' => 'Card + tag'];
+function product_label(string $p): string { if (strpos($p, 'kit:') === 0) return 'Safety kit · collar ' . substr($p, 4) . ' · ₹1,000 COD'; return PRODUCTS[$p] ?? $p; }
+function pet_source(string $json): string { $d = json_decode($json, true) ?: []; return (string)($d['src'] ?? ''); }
 
 /* ---------------- Login / logout ---------------- */
 if ($page === 'logout') { if ($me) log_activity((int)$me['id'], 'admin_logout'); logout_user(); go('p=login'); }
@@ -167,7 +169,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 $unread = (int)q("SELECT COUNT(*) FROM notifications WHERE status = 'unread' AND channel = 'admin'")->fetchColumn();
 $newOrders = (int)q("SELECT COUNT(*) FROM orders WHERE status = 'new'")->fetchColumn();
 $newQuotes = (int)q("SELECT COUNT(*) FROM quotes WHERE status = 'new'")->fetchColumn();
-$nav = ['dash' => ['Dashboard', 0], 'notifications' => ['Notifications', $unread], 'pets' => ['Dog & cat IDs', 0], 'orders' => ['Card orders', $newOrders], 'quotes' => ['Insurance quotes', $newQuotes], 'owners' => ['Owners', 0]];
+$nav = ['dash' => ['Dashboard', 0], 'notifications' => ['Notifications', $unread], 'pets' => ['Dog & cat IDs', 0], 'orders' => ['Kit orders', $newOrders], 'quotes' => ['Insurance quotes', $newQuotes], 'owners' => ['Owners', 0]];
 if (can('team')) $nav['team'] = ['Team users', 0];
 $nav['activity'] = ['Activity log', 0];
 $nav['account'] = ['My account', 0];
@@ -231,10 +233,24 @@ case 'dash':
     <div class="kpis">
       <div class="kpi"><span>IDs created</span><b><?= $c('SELECT COUNT(*) FROM pets') ?></b><small><?= $c('SELECT COUNT(*) FROM pets WHERE created_at >= ?', [$today]) ?> today</small></div>
       <div class="kpi"><span>Owners</span><b><?= $c("SELECT COUNT(*) FROM users WHERE role = 'owner'") ?></b><small>accounts</small></div>
-      <div class="kpi"><span>Card orders</span><b><?= $c('SELECT COUNT(*) FROM orders') ?></b><small><?= $newOrders ?> new</small></div>
+      <div class="kpi"><span>Kit orders</span><b><?= $c('SELECT COUNT(*) FROM orders') ?></b><small><?= $newOrders ?> new</small></div>
       <div class="kpi"><span>Quote requests</span><b><?= $c('SELECT COUNT(*) FROM quotes') ?></b><small><?= $newQuotes ?> new</small></div>
       <div class="kpi"><span>QR scans</span><b><?= $c('SELECT COALESCE(SUM(scan_count),0) FROM pets') ?></b><small>all time</small></div>
     </div>
+    <?php
+      $src = ['entry' => [], 'via' => []]; $withQuote = 0; $withOrder = 0; $n = 0;
+      foreach (q('SELECT p.data, (SELECT COUNT(*) FROM quotes x WHERE x.pet_id = p.id) AS qn, (SELECT COUNT(*) FROM orders o WHERE o.pet_id = p.id) AS onum FROM pets p ORDER BY p.id DESC LIMIT 5000')->fetchAll() as $r) {
+          $n++; $dd = json_decode($r['data'], true) ?: [];
+          $en = ($dd['entry'] ?? '') === 'insurance' ? 'Insurance quote' : 'Free ID';
+          $parts = explode(' · ', (string)($dd['src'] ?? '')); $via = $parts[2] ?? 'unknown';
+          $src['entry'][$en] = ($src['entry'][$en] ?? 0) + 1; $src['via'][$via] = ($src['via'][$via] ?? 0) + 1;
+          if ($r['qn'] > 0) $withQuote++; if ($r['onum'] > 0) $withOrder++;
+      }
+      arsort($src['via']);
+    ?>
+    <div class="card"><div class="head" style="margin-bottom:6px"><h2>Where IDs come from</h2><span class="muted small">Funnel: <?= $n ?> IDs → <?= $withOrder ?> kit orders (<?= $n ? round($withOrder / $n * 100) : 0 ?>%) · <?= $withQuote ?> quote requests (<?= $n ? round($withQuote / $n * 100) : 0 ?>%)</span></div>
+      <div class="split"><div><b class="small">Started as</b><?php foreach ($src['entry'] as $k => $v): ?><p class="small" style="margin:6px 0"><?= e($k) ?>: <b><?= $v ?></b></p><?php endforeach; ?><?php if (!$n): ?><p class="muted small">No IDs yet.</p><?php endif; ?></div>
+      <div><b class="small">Traffic source</b><?php foreach (array_slice($src['via'], 0, 8, true) as $k => $v): ?><p class="small" style="margin:6px 0"><?= e($k) ?>: <b><?= $v ?></b></p><?php endforeach; ?></div></div></div>
     <div class="split">
       <div class="card"><div class="head" style="margin-bottom:6px"><h2>Latest notifications</h2><a href="/admin/?p=notifications">See all</a></div><?php feed(q("SELECT * FROM notifications WHERE channel = 'admin' ORDER BY id DESC LIMIT 8")->fetchAll()); ?></div>
       <div class="card"><div class="head" style="margin-bottom:6px"><h2>Newest IDs</h2><a href="/admin/?p=pets">See all</a></div>
@@ -265,9 +281,9 @@ case 'pets':
     ?>
     <div class="head"><div><h1>Dog &amp; cat IDs</h1><p class="muted"><?= $total ?> found</p></div><?php if (can('export')): ?><a class="btn ghost" href="/admin/?p=export&t=pets">Export CSV</a><?php endif; ?></div>
     <form class="filters" method="get"><input type="hidden" name="p" value="pets"><input name="q" value="<?= e($qq) ?>" placeholder="Search name, ID, mobile, breed, city"><select name="sp"><option value="">Dogs and cats</option><option value="dog" <?= $sp === 'dog' ? 'selected' : '' ?>>Dogs</option><option value="cat" <?= $sp === 'cat' ? 'selected' : '' ?>>Cats</option></select><select name="st"><option value="">Any status</option><?php foreach (['active', 'flagged', 'disabled'] as $s): ?><option <?= $stt === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select><button class="btn">Search</button></form>
-    <div class="card"><div class="tbl-wrap"><table><tr><th>ID number</th><th>Name</th><th>Breed</th><th>Owner</th><th>Mobile</th><th>City</th><th>Scans</th><th>Status</th><th>Created</th></tr>
-    <?php foreach ($rows as $p): ?><tr><td class="mono nowrap"><a href="/admin/?p=pet&id=<?= (int)$p['id'] ?>"><?= e($p['id_no']) ?></a></td><td><b><?= e($p['name']) ?></b> <span class="muted small"><?= $p['species'] ?></span></td><td><?= e($p['breed']) ?></td><td><?= e($p['owner']) ?></td><td class="nowrap"><?= e($p['mobile']) ?></td><td><?= e($p['city']) ?></td><td><?= (int)$p['scan_count'] ?></td><td><?= pill($p['status']) ?></td><td class="nowrap"><?= fmt_dt($p['created_at']) ?></td></tr><?php endforeach; ?>
-    <?php if (!$rows): ?><tr><td colspan="9" class="muted">No IDs yet.</td></tr><?php endif; ?></table></div>
+    <div class="card"><div class="tbl-wrap"><table><tr><th>ID number</th><th>Name</th><th>Breed</th><th>Owner</th><th>Mobile</th><th>City</th><th>Came from</th><th>Scans</th><th>Status</th><th>Created</th></tr>
+    <?php foreach ($rows as $p): ?><tr><td class="mono nowrap"><a href="/admin/?p=pet&id=<?= (int)$p['id'] ?>"><?= e($p['id_no']) ?></a></td><td><b><?= e($p['name']) ?></b> <span class="muted small"><?= $p['species'] ?></span></td><td><?= e($p['breed']) ?></td><td><?= e($p['owner']) ?></td><td class="nowrap"><?= e($p['mobile']) ?></td><td><?= e($p['city']) ?></td><td class="small"><?= e(pet_source($p['data'])) ?: '<span class="muted">—</span>' ?></td><td><?= (int)$p['scan_count'] ?></td><td><?= pill($p['status']) ?></td><td class="nowrap"><?= fmt_dt($p['created_at']) ?></td></tr><?php endforeach; ?>
+    <?php if (!$rows): ?><tr><td colspan="10" class="muted">No IDs yet.</td></tr><?php endif; ?></table></div>
     <?php pager($total, $per, $pg, 'p=pets&q=' . urlencode($qq) . '&sp=' . urlencode((string)$sp) . '&st=' . urlencode((string)$stt)); ?></div>
     <?php break;
 
@@ -298,7 +314,7 @@ case 'pet':
         <dt>Address</dt><dd><?= e(implode(', ', array_filter([$d['oHouse'] ?? '', $d['oLocality'] ?? '', $d['oCity'] ?? '', $d['oState'] ?? '', $d['oPin'] ?? '']))) ?></dd>
         <dt>Emergency</dt><dd><?= e(trim(($d['eName'] ?? '') . ' ' . (($d['eMobile'] ?? '') ? '+91 ' . $d['eMobile'] : ''))) ?: '—' ?></dd>
         <dt>ID proof</dt><dd><?= e($d['kycType'] ?? '') ?: '—' ?><?= !empty($d['kycLast4']) ? ' · ending ' . e($d['kycLast4']) : '' ?></dd>
-        <dt>WhatsApp reminders</dt><dd><?= !empty($d['cWa']) ? 'Yes' : 'No' ?></dd></dl>
+        <dt>WhatsApp reminders</dt><dd><?= !empty($d['cWa']) ? 'Yes' : 'No' ?></dd><dt>Came from</dt><dd><?= e($d['src'] ?? '') ?: '—' ?></dd></dl>
         <h2>Primary clinic</h2><dl class="kv">
         <?php if (!empty($d['clinicNone'])): ?><dt>Clinic</dt><dd>No regular vet. Wants a partner clinic suggested.</dd><?php else: ?>
         <dt>Clinic</dt><dd><?= $v('clinic') ?> <?= e($d['clinicArea'] ?? '') ?></dd><dt>Doctor</dt><dd><?= $v('doctor') ?> <?= !empty($d['doctorPh']) ? '· +91 ' . e($d['doctorPh']) : '' ?></dd>
@@ -308,7 +324,7 @@ case 'pet':
     <div class="card"><h2>Files (<?= count($docs) ?>)</h2><?php if (!$docs): ?><p class="muted">No files uploaded.</p><?php endif; ?><div class="docs">
     <?php foreach ($docs as $doc): ?><a class="doc" href="/admin/?p=file&id=<?= (int)$doc['id'] ?>" target="_blank" rel="noopener"><span class="th"><?php if (strpos($doc['mime'], 'image/') === 0 && $doc['kind'] !== 'kyc'): ?><img src="/admin/?p=file&id=<?= (int)$doc['id'] ?>" alt="" loading="lazy"><?php else: ?><?= $doc['kind'] === 'kyc' ? '🔒 ID proof' : 'PDF' ?><?php endif; ?></span><span><b><?= e(ucfirst($doc['kind'])) ?></b> · <?= e($doc['label']) ?><br><span class="muted"><?= e($doc['original_name']) ?></span></span></a><?php endforeach; ?></div></div>
     <div class="split">
-      <div class="card"><h2>Orders</h2><?php $os = q('SELECT * FROM orders WHERE pet_id = ? ORDER BY id DESC', [$pid])->fetchAll(); if (!$os) echo '<p class="muted">None</p>'; foreach ($os as $o): ?><p><b class="mono"><?= e($o['order_no']) ?></b> · <?= e(PRODUCTS[$o['product']] ?? $o['product']) ?> · <?= pill($o['status']) ?></p><?php endforeach; ?></div>
+      <div class="card"><h2>Orders</h2><?php $os = q('SELECT * FROM orders WHERE pet_id = ? ORDER BY id DESC', [$pid])->fetchAll(); if (!$os) echo '<p class="muted">None</p>'; foreach ($os as $o): ?><p><b class="mono"><?= e($o['order_no']) ?></b> · <?= e(product_label($o['product'])) ?> · <?= pill($o['status']) ?></p><?php endforeach; ?></div>
       <div class="card"><h2>Quote requests</h2><?php $qs = q('SELECT * FROM quotes WHERE pet_id = ? ORDER BY id DESC', [$pid])->fetchAll(); if (!$qs) echo '<p class="muted">None</p>'; foreach ($qs as $x): ?><p><b class="mono"><?= e($x['quote_no']) ?></b> · <?= e(ucfirst($x['plan'])) ?> · ₹<?= number_format((int)$x['sum_insured']) ?> · <?= pill($x['status']) ?></p><?php endforeach; ?></div>
     </div>
     <?php if ($me['role'] === 'superadmin'): ?><div class="card"><h2>Delete this ID</h2><p class="muted small">Removes the ID, its files, orders and quotes for good. The owner account stays.</p><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="a" value="pet_delete"><input type="hidden" name="id" value="<?= $pid ?>"><input name="confirm" placeholder="Type DELETE" style="max-width:160px"><button class="btn danger sm">Delete</button></form></div><?php endif; ?>
@@ -325,14 +341,14 @@ case 'quotes':
     $total = (int)q("SELECT COUNT(*) FROM $tbl x WHERE $where", $args)->fetchColumn();
     $rows = q("SELECT x.*, p.id_no, p.name AS pet, p.breed, u.name AS owner, u.mobile AS omobile FROM $tbl x JOIN pets p ON p.id = x.pet_id JOIN users u ON u.id = x.owner_id WHERE $where ORDER BY x.id DESC LIMIT $per OFFSET $off", $args)->fetchAll();
     ?>
-    <div class="head"><div><h1><?= $isO ? 'Card orders' : 'Insurance quote requests' ?></h1><p class="muted"><?= $total ?> found<?= $isO ? ' · pay-on-delivery pre-orders' : ' · follow up with a licensed advisor' ?></p></div><?php if (can('export')): ?><a class="btn ghost" href="/admin/?p=export&t=<?= $tbl ?>">Export CSV</a><?php endif; ?></div>
+    <div class="head"><div><h1><?= $isO ? 'Kit orders' : 'Insurance quote requests' ?></h1><p class="muted"><?= $total ?> found<?= $isO ? ' · safety kits, ₹1,000 pay on delivery' : ' · follow up with a licensed advisor' ?></p></div><?php if (can('export')): ?><a class="btn ghost" href="/admin/?p=export&t=<?= $tbl ?>">Export CSV</a><?php endif; ?></div>
     <form class="filters" method="get"><input type="hidden" name="p" value="<?= $page ?>"><select name="st" onchange="this.form.submit()"><option value="">All statuses</option><?php foreach ($statuses as $s): ?><option <?= $stt === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select></form>
     <div class="card"><div class="tbl-wrap"><table>
     <tr><th><?= $isO ? 'Order' : 'Request' ?></th><th>For</th><?= $isO ? '<th>Product</th><th>Deliver to</th>' : '<th>Plan</th><th>Health</th><th>Owner</th>' ?><th>Status &amp; notes</th><th>Created</th></tr>
     <?php foreach ($rows as $r): ?><tr>
       <td class="mono nowrap"><?= e($isO ? $r['order_no'] : $r['quote_no']) ?></td>
       <td><a href="/admin/?p=pet&id=<?= (int)$r['pet_id'] ?>"><?= e($r['pet']) ?></a><br><span class="muted small"><?= e($r['breed']) ?></span></td>
-      <?php if ($isO): ?><td><?= e(PRODUCTS[$r['product']] ?? $r['product']) ?></td><td><?= e($r['ship_name']) ?> · +91 <?= e($r['ship_mobile']) ?><br><span class="small"><?= e($r['ship_address']) ?>, <?= e($r['ship_city']) ?>, <?= e($r['ship_state']) ?> <?= e($r['ship_pin']) ?></span></td>
+      <?php if ($isO): ?><td><?= e(product_label($r['product'])) ?></td><td><?= e($r['ship_name']) ?> · +91 <?= e($r['ship_mobile']) ?><br><span class="small"><?= e($r['ship_address']) ?>, <?= e($r['ship_city']) ?>, <?= e($r['ship_state']) ?> <?= e($r['ship_pin']) ?></span></td>
       <?php else: ?><td><?= e(ucfirst($r['plan'])) ?><br><span class="small">₹<?= number_format((int)$r['sum_insured']) ?> cover</span></td><td class="small">Ill in 12m: <?= e($r['ill_12m']) ?><br>Ongoing: <?= e($r['ongoing']) ?></td><td><?= e($r['owner']) ?><br><a class="small" href="https://wa.me/91<?= e($r['omobile']) ?>" target="_blank" rel="noopener">+91 <?= e($r['omobile']) ?></a></td><?php endif; ?>
       <td style="min-width:220px"><?php if (can('status')): ?><form method="post" class="form" style="gap:6px"><?= csrf_field() ?><input type="hidden" name="a" value="<?= $isO ? 'order_status' : 'quote_status' ?>"><input type="hidden" name="id" value="<?= (int)$r['id'] ?>"><input type="hidden" name="back" value="p=<?= $page ?>"><select name="status"><?php foreach ($statuses as $s): ?><option <?= $r['status'] === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select><input name="notes" value="<?= e($r['notes']) ?>" placeholder="Notes"><button class="btn sm">Save</button></form><?php else: ?><?= pill($r['status']) ?><?php endif; ?></td>
       <td class="nowrap"><?= fmt_dt($r['created_at']) ?></td></tr><?php endforeach; ?>

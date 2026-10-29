@@ -63,7 +63,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   $orders = q('SELECT o.*, p.name AS pet FROM orders o JOIN pets p ON p.id = o.pet_id WHERE o.owner_id = ? ORDER BY o.id DESC', [$me['id']])->fetchAll();
   $quotes = q('SELECT x.*, p.name AS pet FROM quotes x JOIN pets p ON p.id = x.pet_id WHERE x.owner_id = ? ORDER BY x.id DESC', [$me['id']])->fetchAll();
   $photo = function (int $pid): bool { return (bool)q("SELECT 1 FROM documents WHERE pet_id = ? AND kind = 'photo' LIMIT 1", [$pid])->fetchColumn(); };
-  $products = ['card' => 'PVC card', 'tag' => 'Steel tag', 'combo' => 'Card + tag'];
+  $products = ['card' => 'PVC card', 'tag' => 'Steel tag', 'combo' => 'Card + tag', 'kit:S' => 'Safety kit (collar S)', 'kit:M' => 'Safety kit (collar M)', 'kit:L' => 'Safety kit (collar L)', 'kit:XL' => 'Safety kit (collar XL)'];
 ?>
 <body><main class="main" style="max-width:1100px;margin:0 auto">
   <div class="head"><a class="brand" href="/" style="text-decoration:none;color:inherit"><span class="mk"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg></span> IndiaPetInsurance<small>.com</small></a><div class="inline"><?php if (in_array($me['role'], STAFF_ROLES, true)): ?><a class="btn ghost sm" href="/admin/">Admin panel</a><?php endif; ?><a class="btn ghost sm" href="/account/?logout=1">Log out</a></div></div>
@@ -87,7 +87,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   <?php if (!$pets): ?><div class="card"><p>No IDs yet. <a href="/#make-id">Make your first one</a>.</p></div><?php endif; ?>
   </div>
   <div class="split" style="margin-top:16px">
-    <div class="card"><h2>Card and tag orders</h2><?php if (!$orders): ?><p class="muted">No orders yet.</p><?php endif; ?><?php foreach ($orders as $o): ?><p><b class="mono"><?= e($o['order_no']) ?></b> · <?= e($products[$o['product']] ?? $o['product']) ?> for <?= e($o['pet']) ?> · <span class="pill"><?= e($o['status']) ?></span></p><?php endforeach; ?></div>
+    <div class="card"><h2>Kit orders</h2><?php if (!$orders): ?><p class="muted">No orders yet.</p><?php endif; ?><?php foreach ($orders as $o): ?><p><b class="mono"><?= e($o['order_no']) ?></b> · <?= e($products[$o['product']] ?? $o['product']) ?> for <?= e($o['pet']) ?> · <span class="pill"><?= e($o['status']) ?></span></p><?php endforeach; ?></div>
     <div class="card"><h2>Insurance quote requests</h2><?php if (!$quotes): ?><p class="muted">No requests yet.</p><?php endif; ?><?php foreach ($quotes as $x): ?><p><b class="mono"><?= e($x['quote_no']) ?></b> · <?= e(ucfirst($x['plan'])) ?> for <?= e($x['pet']) ?> · ₹<?= number_format((int)$x['sum_insured']) ?> · <span class="pill"><?= e($x['status']) ?></span></p><?php endforeach; ?></div>
   </div>
   <div class="card" style="max-width:520px"><h2>Change password</h2><form method="post" class="form"><?= csrf_field() ?><input type="hidden" name="a" value="password"><label>Current password<input type="password" name="current" required autocomplete="current-password"></label><label>New password (8+ characters)<input type="password" name="new" required minlength="8" autocomplete="new-password"></label><button class="btn" style="justify-self:start">Update</button></form></div>

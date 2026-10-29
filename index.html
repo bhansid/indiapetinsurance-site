@@ -31,7 +31,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Hind:wght@500;600&display=swap">
-<link rel="stylesheet" href="assets/style.css?v=3">
+<link rel="stylesheet" href="assets/style.css?v=6">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
  {"@type":"Organization","@id":"https://indiapetinsurance.com/#org","name":"IndiaPetInsurance.com","url":"https://indiapetinsurance.com/","logo":"https://indiapetinsurance.com/assets/icon-512.png","parentOrganization":{"@type":"Organization","name":"Scram Technologies Pvt. Ltd."},"areaServed":{"@type":"Country","name":"India"},"address":{"@type":"PostalAddress","addressLocality":"Jammu","addressRegion":"Jammu and Kashmir","addressCountry":"IN"}},
@@ -43,6 +43,7 @@
   {"@type":"Question","name":"Is this an official government registration?","acceptedAnswer":{"@type":"Answer","text":"No. It is a private ID from IndiaPetInsurance.com. Your city may also require a municipal dog licence. You can add your licence number to the ID so everything is in one place."}},
   {"@type":"Question","name":"Why do you ask for my ID proof?","acceptedAnswer":{"@type":"Answer","text":"Insurers need KYC before issuing a policy, and municipal licences need owner ID and address proof. You can skip it now and add it when you buy insurance."}},
   {"@type":"Question","name":"Can I add records from my current vet?","acceptedAnswer":{"@type":"Answer","text":"Yes. Upload vaccination cards, prescriptions and reports from any clinic, partner or not."}},
+  {"@type":"Question","name":"What's in the dog and cat safety kit?","acceptedAnswer":{"@type":"Answer","text":"Two steel QR ID tags for the collar, a premium reflective collar, a PVC ID card and a travel water bottle with a fold-out bowl, for ₹1,000 including delivery."}},
   {"@type":"Question","name":"Who provides the insurance?","acceptedAnswer":{"@type":"Answer","text":"A licensed insurer, arranged through an IRDAI-registered intermediary. Their names and registration numbers will be shown before any plan goes on sale."}}
  ]}
 ]}
@@ -50,13 +51,13 @@
 </head>
 <body>
 <noscript><div class="proto">Please turn on JavaScript to create an ID. You can still read everything on this page.</div></noscript>
-<div class="proto">Launching in Jammu. <b>Insurance prices and partner details will be confirmed before plans go on sale.</b></div>
+<div class="proto">Launching in Jammu.<span class="pl"> <b>Insurance prices and partner details will be confirmed before plans go on sale.</b></span></div>
 
 <nav class="top" aria-label="Main">
   <div class="wrap">
     <a class="logo" href="#top"><span class="mk"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg></span><span>IndiaPetInsurance<small>.com</small></span></a>
-    <div class="navlinks"><a href="#idcard">The ID</a><a href="#lost">Lost &amp; found</a><a href="#cover">Insurance</a><a href="#vets">For vets</a><a href="#faq">Help</a></div>
-    <div class="navright"><a class="navlogin" href="/account/" id="navLogin">Log in</a><button class="btn btn-blue btn-sm" type="button" data-start="dog">Get free ID</button></div>
+    <div class="navlinks"><a href="#idcard">The ID</a><a href="#lost">Lost &amp; found</a><a href="/insurance/">Insurance</a><a href="#vets">For vets</a><a href="#faq">Help</a></div>
+    <div class="navright"><a class="navlogin navins" href="/insurance/">Insurance</a><a class="navlogin" href="/account/" id="navLogin">Log in</a><button class="btn btn-blue btn-sm" type="button" data-start="dog">Get free ID</button></div>
   </div>
 </nav>
 
@@ -68,15 +69,16 @@
   <div class="wrap hero-grid">
     <div>
       <div class="hindi" lang="hi">हर दोस्त की अपनी पहचान</div>
-      <h1>Give <span class="rot" id="rot"><span>Bruno</span></span> an ID card.<span class="h1sub">Free dog &amp; cat ID with QR tag, in 3 minutes.</span></h1>
-      <p class="lede">A smart QR ID for your dog or cat, every vaccine and vet record in one place, reminders from your own vet, and insurance whenever you want it.</p>
+      <h1>Give <span class="rot" id="rot"><span>Bruno</span></span><br>an ID card.<span class="h1sub">Free, in 3 minutes.</span></h1>
+      <p class="lede">A smart QR ID card for your dog or cat, every vaccine and vet record in one place, reminders from your own vet, and pet insurance whenever you want it.</p>
       <div class="start">
         <button class="btn btn-blue" type="button" data-start="dog"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg>Make my dog's ID</button>
         <button class="btn btn-ghost" type="button" data-start="cat">Make my cat's ID</button>
       </div>
+      <a class="inslink" href="/insurance/">Looking for pet insurance? <b>Get a quote in 2 minutes →</b></a>
       <div class="assure">
         <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Free forever</span>
-        <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Download or get it printed</span>
+        <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Collar kit delivered across India</span>
         <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>You control what's public</span>
       </div>
     </div>
@@ -211,6 +213,7 @@
       <details><summary>Is this an official government registration?</summary><p>No. It is a private ID from IndiaPetInsurance.com. Your city may also require a municipal dog licence. You can add your licence number to the ID so everything is in one place.</p></details>
       <details><summary>Why do you ask for my ID proof?</summary><p>Insurers need KYC before issuing a policy, and municipal licences need owner ID and address proof. You can skip it now and add it when you buy insurance.</p></details>
       <details><summary>Can I add records from my current vet?</summary><p>Yes. Upload vaccination cards, prescriptions and reports from any clinic, partner or not.</p></details>
+      <details><summary>What's in the safety kit?</summary><p>Two steel QR ID tags for the collar (one spare), a premium reflective collar, a PVC ID card with all the details, and a travel water bottle with a fold-out bowl. ₹1,000 including delivery, pay on delivery. You can order it right after making the free ID.</p></details>
       <details><summary>Who provides the insurance?</summary><p>A licensed insurer, arranged through an IRDAI-registered intermediary. Their names and registration numbers will be shown before any plan goes on sale.</p></details>
     </div>
   </div>
@@ -250,6 +253,6 @@
 </div>
 <canvas id="confetti" hidden></canvas>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
-<script src="assets/app.js?v=3" defer></script>
+<script src="assets/app.js?v=6" defer></script>
 </body>
 </html>

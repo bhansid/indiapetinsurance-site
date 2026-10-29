@@ -14,11 +14,14 @@ $st->execute([str_field($d, 'id_no', 32), $u['id']]);
 $pet = $st->fetch();
 if (!$pet) fail('ID not found on your account.', 404);
 
-$product = in_array($d['product'] ?? '', ['card', 'tag', 'combo'], true) ? $d['product'] : '';
+// Current product: the safety kit (2 QR tags, reflective collar, PVC card, travel bottle), ₹1,000 incl. delivery, pay on delivery
+const KIT_PRICE = 1000;
+$size = in_array($d['size'] ?? '', ['S', 'M', 'L', 'XL'], true) ? $d['size'] : '';
+$product = ($d['product'] ?? '') === 'kit' && $size ? 'kit:' . $size : '';
 $mobile = clean_mobile($d['mobile'] ?? '');
 $pin = preg_replace('/\D/', '', (string)($d['pin'] ?? ''));
 $fields = [];
-if (!$product) $fields['product'] = 'Choose a product.';
+if (!$product) $fields['size'] = 'Choose a collar size.';
 if (str_field($d, 'name') === '') $fields['name'] = 'Add a name.';
 if (!valid_mobile($mobile)) $fields['mobile'] = 'Enter a valid 10-digit mobile.';
 if (str_field($d, 'address', 255) === '') $fields['address'] = 'Add a delivery address.';
@@ -29,7 +32,6 @@ $no = unique_code('orders', 'order_no', fn() => 'ORD-' . date('ymd') . '-' . ran
 db()->prepare('INSERT INTO orders (order_no, pet_id, owner_id, product, ship_name, ship_mobile, ship_address, ship_city, ship_state, ship_pin, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
   ->execute([$no, $pet['id'], $u['id'], $product, str_field($d, 'name'), $mobile, str_field($d, 'address', 255), str_field($d, 'city', 80), str_field($d, 'state', 80), $pin, 'new', now(), now()]);
 $oid = (int)db()->lastInsertId();
-$labels = ['card' => 'PVC card', 'tag' => 'Steel tag', 'combo' => 'Card + tag'];
-notify('order_new', 'New order ' . $no . ': ' . $labels[$product] . ' for ' . $pet['name'], str_field($d, 'name') . ' · +91 ' . $mobile . ' · ' . str_field($d, 'city', 80) . ' ' . $pin, 'orders', $oid);
+notify('order_new', 'New kit order ' . $no . ' for ' . $pet['name'] . ' · ₹' . number_format(KIT_PRICE) . ' COD', 'Collar ' . $size . ' · ' . str_field($d, 'name') . ' · +91 ' . $mobile . ' · ' . str_field($d, 'address', 255) . ', ' . str_field($d, 'city', 80) . ' ' . $pin, 'orders', $oid);
 log_activity((int)$u['id'], 'order_new', $no);
-json_out(['ok' => true, 'order_no' => $no]);
+json_out(['ok' => true, 'order_no' => $no, 'amount' => KIT_PRICE]);
