@@ -10,7 +10,7 @@ DirectoryIndex index.html index.php
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
   # Block private paths
-  RewriteRule ^(\.git|api/lib|api/config\.php|uploads)(/|$) - [F,L]
+  RewriteRule ^(\.git|api/lib|api/config\.php|uploads|tools)(/|$) - [F,L]
 
   # Public "found pet" pages: /p/IPI-JK-26-123456
   RewriteRule ^p/([A-Za-z0-9-]+)/?$ p.php?id=$1 [L,QSA]

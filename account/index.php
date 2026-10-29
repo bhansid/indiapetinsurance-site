@@ -55,9 +55,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   <h1>Log in</h1><p class="muted">See your dogs' and cats' IDs, change what the QR tag shows, and track orders.</p>
   <?php if ($err): ?><div class="alert err"><?= e($err) ?></div><?php endif; ?>
   <form method="post" class="form"><?= csrf_field() ?><label>Mobile number or email<input name="login" required autocomplete="username" inputmode="email" placeholder="98xxxxxxxx"></label><label>Password<input type="password" name="password" required autocomplete="current-password"></label><button class="btn">Log in</button></form>
-  <p class="muted small">Forgot your password? Message us on WhatsApp from your registered number and we'll reset it.</p>
+  <p class="muted small">Forgot your password? Email <a href="mailto:support@indiapetinsurance.com">support@indiapetinsurance.com</a> from your registered email, or with your mobile number, and we'll reset it.</p>
   <p class="small">New here? <a href="/#make-id">Make a free ID for your dog or cat</a> and your account is created automatically.</p>
-</main></body>
+<p class="muted small" style="text-align:center;margin-top:18px"><a href="/privacy-policy/">Privacy</a> · <a href="/terms/">Terms</a> · <a href="/refund-policy/">Returns &amp; refunds</a></p></main></body>
 <?php else:
   $pets = q('SELECT * FROM pets WHERE owner_id = ? ORDER BY id DESC', [$me['id']])->fetchAll();
   $orders = q('SELECT o.*, p.name AS pet FROM orders o JOIN pets p ON p.id = o.pet_id WHERE o.owner_id = ? ORDER BY o.id DESC', [$me['id']])->fetchAll();
@@ -91,6 +91,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     <div class="card"><h2>Insurance quote requests</h2><?php if (!$quotes): ?><p class="muted">No requests yet.</p><?php endif; ?><?php foreach ($quotes as $x): ?><p><b class="mono"><?= e($x['quote_no']) ?></b> · <?= e(ucfirst($x['plan'])) ?> for <?= e($x['pet']) ?> · ₹<?= number_format((int)$x['sum_insured']) ?> · <span class="pill"><?= e($x['status']) ?></span></p><?php endforeach; ?></div>
   </div>
   <div class="card" style="max-width:520px"><h2>Change password</h2><form method="post" class="form"><?= csrf_field() ?><input type="hidden" name="a" value="password"><label>Current password<input type="password" name="current" required autocomplete="current-password"></label><label>New password (8+ characters)<input type="password" name="new" required minlength="8" autocomplete="new-password"></label><button class="btn" style="justify-self:start">Update</button></form></div>
-</main></body>
+<p class="muted small" style="text-align:center;margin-top:18px"><a href="/privacy-policy/">Privacy</a> · <a href="/terms/">Terms</a> · <a href="/refund-policy/">Returns &amp; refunds</a></p></main></body>
 <?php endif; ?>
 </html>

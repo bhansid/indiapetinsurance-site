@@ -58,4 +58,4 @@ http_response_code($p ? 200 : 404);
     <div class="alert">🔒 Medical records are private. The owner can share them with a vet.</div>
     <p class="muted small">Want an ID like this for your own dog or cat? <a href="/#make-id">Make one free</a>.</p>
   <?php endif; ?>
-</main></body></html>
+<p class="muted small" style="text-align:center;margin-top:18px"><a href="/privacy-policy/">Privacy</a> · <a href="/terms/">Terms</a> · <a href="/refund-policy/">Returns &amp; refunds</a></p></main></body></html>
