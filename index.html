@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IndiaPetInsurance.com · Free ID card for your dog or cat</title>
+<meta name="description" content="Make a free smart QR ID card for your dog or cat in 3 minutes. Vaccination records, vet reminders, lost-and-found QR tag, and insurance when you want it.">
+<!-- Remove the next line when you are ready for Google to index the site (after insurer approval). -->
+<meta name="robots" content="noindex, nofollow">
+<meta property="og:title" content="Give your dog or cat an ID card. Free, in 3 minutes.">
+<meta property="og:description" content="Smart QR ID, health records, vet reminders and insurance. Starting in Jammu.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#2457F5">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Hind:wght@500;600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="proto">Prototype. <b>Prices, insurer and partner details are not final</b>. Nothing you enter here is sent anywhere.</div>
+
+<nav class="top" aria-label="Main">
+  <div class="wrap">
+    <a class="logo" href="#top"><span class="mk"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg></span><span>IndiaPetInsurance<small>.com</small></span></a>
+    <div class="navlinks"><a href="#idcard">The ID</a><a href="#lost">Lost &amp; found</a><a href="#cover">Insurance</a><a href="#vets">For vets</a><a href="#faq">Help</a></div>
+    <button class="btn btn-blue btn-sm" type="button" data-start="dog">Get free ID</button>
+  </div>
+</nav>
+
+<div id="duo" role="button" tabindex="0" aria-label="Dog and cat mascots. Press to say hello."><div class="flip"><svg viewBox="0 0 560 280" id="duoSvg"></svg></div></div>
+<div id="lane"><div class="lpath"></div><div id="marks"></div><div id="bubble" aria-live="polite"></div></div>
+
+<!-- HERO -->
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="hindi">हर दोस्त की अपनी पहचान</div>
+      <h1>Give <span class="rot" id="rot"><span>Bruno</span></span> an ID card.<br>Free, in 3 minutes.</h1>
+      <p class="lede">A smart QR ID for your dog or cat, every vaccine and vet record in one place, reminders from your own vet, and insurance whenever you want it.</p>
+      <div class="start">
+        <button class="btn btn-blue" type="button" data-start="dog"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg>Make my dog's ID</button>
+        <button class="btn btn-ghost" type="button" data-start="cat">Make my cat's ID</button>
+      </div>
+      <div class="assure">
+        <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Free forever</span>
+        <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Download or get it printed</span>
+        <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>You control what's public</span>
+      </div>
+    </div>
+    <div class="hero-vis">
+      <div class="hero-card"><div class="idc-wrap" id="heroCard"></div></div>
+      <div class="spot" id="spot"><span class="say dog" id="sayDog">Woof!</span><span class="say cat" id="sayCat">Meow!</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="trust">
+  <div class="wrap">
+    <div><i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></i><span>Licensed insurer partner<small>Named here before launch</small></span></div>
+    <div><i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></i><span>Built with Jammu vets<small>Clinic network starting here</small></span></div>
+    <div><i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></i><span>Your consent first<small>Medical records stay locked</small></span></div>
+    <div><i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.9A8 8 0 1121 12z"/></svg></i><span>Real people on WhatsApp<small>Help in English and Hindi</small></span></div>
+  </div>
+</div>
+
+<!-- WHAT'S ON THE ID -->
+<section id="idcard" data-mark="The ID" data-say="That's my face on it!">
+  <div class="wrap explain">
+    <div class="ex-card">
+      <div class="flipper" id="exFlip"><div class="in"><div class="idc-wrap" id="exFront"></div><div class="idc-wrap b" id="exBack"></div></div></div>
+      <button class="hot" style="left:12%;top:30%" data-h="0" aria-label="Photo">1</button>
+      <button class="hot" style="left:58%;top:40%" data-h="1" aria-label="ID number">2</button>
+      <button class="hot" style="left:83%;top:66%" data-h="2" aria-label="QR code">3</button>
+      <button class="hot" style="left:24%;top:82%" data-h="3" aria-label="Badges">4</button>
+    </div>
+    <div>
+      <div class="sec-head" style="margin-bottom:24px"><span class="eyebrow">What's on the card</span><h2>Not a name tag. A full identity.</h2><p class="lede">Tap a number on the card. The back carries emergency details, and only you choose what a stranger can see.</p></div>
+      <div class="ex-list" id="exList">
+        <button class="ex-item on" data-h="0" type="button"><span class="n">1</span><span><b>Photo and description</b><span>Breed, colour, sex, age and marks, so anyone can match the face.</span></span></button>
+        <button class="ex-item" data-h="1" type="button"><span class="n">2</span><span><b>A unique ID number</b><span>Linked to the health record. Works with clinics, municipal licences and insurers.</span></span></button>
+        <button class="ex-item" data-h="2" type="button"><span class="n">3</span><span><b>Scan-to-reach-family QR</b><span>Opens a public page with your contact. Medical records stay locked behind an OTP.</span></span></button>
+        <button class="ex-item" data-h="3" type="button"><span class="n">4</span><span><b>Verified badges</b><span>Vaccinated, licensed, microchipped. Badges appear once you add the papers.</span></span></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LOST -->
+<section id="lost" style="background:var(--tint)" data-mark="Lost" data-say="Scan my tag if I'm lost!">
+  <div class="wrap lost">
+    <div>
+      <div class="sec-head" style="margin-bottom:0"><span class="eyebrow">Lost &amp; found</span><h2>If Bruno gets out, one scan brings him home.</h2><p class="lede">No app needed. Any phone camera opens the profile.</p></div>
+      <div class="steps3">
+        <div class="s3"><span class="n">1</span><div><b>Someone scans the collar tag</b><span>The public profile opens in their browser.</span></div></div>
+        <div class="s3"><span class="n">2</span><div><b>They call you in one tap</b><span>Your number shows only if you allowed it.</span></div></div>
+        <div class="s3"><span class="n">3</span><div><b>Records stay private</b><span>A vet needs an OTP from you to see the history.</span></div></div>
+      </div>
+      <button class="btn btn-dark" id="scanBtn" type="button" style="margin-top:28px">Try it: scan Bruno's tag</button>
+    </div>
+    <div class="phone"><div class="screen" id="qrScreen"><div class="scan-view"><div><svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg><p style="margin-top:10px;font-weight:600">Press <b>Try it</b> to scan</p></div></div></div></div>
+  </div>
+</section>
+
+<!-- BREEDS -->
+<section class="breeds" data-mark="Breeds" data-say="Rajapalayam to Retriever!">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Every breed in India</span><h2>From Rajapalayam to Retriever. From Indie to Persian.</h2><p class="lede"><span id="breedCount">200+</span> dog and cat breeds, including India's own. Highlighted chips are native Indian breeds.</p></div>
+  </div>
+  <div class="marq" id="mq1"></div>
+  <div class="marq rev" id="mq2"></div>
+</section>
+
+<!-- INSURANCE -->
+<section id="cover" data-mark="Insurance" data-say="Now protect us!">
+  <div class="wrap">
+    <div class="sec-head c"><span class="eyebrow">Then, protect them</span><h2>Insurance that starts with the ID you already made.</h2><p class="lede">Your ID already has the breed, age, records and vet. So getting a quote takes one tap, not one more form.</p></div>
+    <div class="plans">
+      <article class="plan">
+        <div><span class="eyebrow">Essential</span><h3>Everyday cover</h3></div>
+        <ul><li>Pet insurance from a licensed insurer</li><li>10 vet consultations a year on WhatsApp</li><li>Extra consultations at member prices</li><li>Steel QR collar tag included</li><li>Partner clinic savings, including spay/neuter</li></ul>
+        <div class="priceline"><div><b>Price at launch</b><span>Based on breed, age and cover amount</span></div><button class="btn btn-ghost" type="button" data-start="dog" data-goal="insure">Get a quote</button></div>
+      </article>
+      <article class="plan pop"><span class="tag">ADDS GPS</span>
+        <div><span class="eyebrow">Complete</span><h3>Cover + tracking</h3></div>
+        <ul><li>Everything in Essential</li><li class="plus">4G GPS tracker that you own</li><li class="plus">First year of tracking included</li><li class="plus">Enhanced vet assistance</li><li class="plus">Vet access after 10 consultations at a small fee each</li></ul>
+        <div class="priceline"><div><b>Price at launch</b><span>GPS renews at about ₹500 a year</span></div><button class="btn btn-blue" type="button" data-start="dog" data-goal="insure">Get a quote</button></div>
+      </article>
+    </div>
+    <div class="covers">
+      <div class="cov"><i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 21s-7-4.4-9-9c-1.5-3.5 1-7 4.5-7 2 0 3.5 1.2 4.5 2.5C13 6.2 14.5 5 16.5 5 20 5 22.5 8.5 21 12c-2 4.6-9 9-9 9z"/></svg></i><b>Illness</b><span>Infections, stomach problems, chronic conditions</span></div>
+      <div class="cov"><i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></i><b>Accidents</b><span>Road accidents, falls, bites, swallowed objects</span></div>
+      <div class="cov"><i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 20L20 4M14 4h6v6"/></svg></i><b>Surgery</b><span>Operations and hospital stays</span></div>
+      <div class="cov"><i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2M12 11v5M9.5 13.5h5"/></svg></i><b>Treatment costs</b><span>Diagnostics and medicines, per policy</span></div>
+    </div>
+    <p class="fine">What's covered, sub-limits, exclusions and waiting periods depend on the insurer's approved policy wording. Some insurers ask for photos from five angles, a vaccination declaration, and a Kennel Club of India pedigree certificate for high cover amounts. Partner clinic savings are membership benefits, not insurance.</p>
+  </div>
+</section>
+
+<!-- VETS -->
+<section class="vets" id="vets" data-mark="Vets" data-say="Vets are our best friends.">
+  <div class="wrap vet-grid">
+    <div>
+      <span class="eyebrow">For veterinary clinics</span>
+      <h2 style="margin-top:12px">Every ID links to a clinic. Make it yours.</h2>
+      <p class="lede" style="margin-top:14px">When owners add you as their primary clinic, you get the records, the reminders go out in your name, and they come back to you.</p>
+      <div class="perks"><div><b>Free clinic platform</b><span>Profiles, visits, vaccine records</span></div><div><b>Reminders in your name</b><span>Vaccines, deworming, follow-ups</span></div><div><b>Directory listing</b><span>Owners nearby can find you</span></div><div><b>No selling</b><span>A standee and QR card do it</span></div></div>
+      <button class="btn btn-dark" type="button" style="margin-top:24px" id="vetBtn">Register my clinic</button>
+    </div>
+    <div class="dash" id="dash">
+      <div class="dash-top"><b>Clinic dashboard</b><span class="chip"><span class="dot"></span>Sample data</span></div>
+      <div class="kpis"><div class="kpi"><span>IDs linked</span><b data-count="412">0</b></div><div class="kpi"><span>Reminders</span><b data-count="1268">0</b></div><div class="kpi"><span>Came back</span><b data-count="63" data-suffix="%">0</b></div></div>
+      <div>
+        <div class="q"><span class="pi">MX</span><span><b>Max</b> · Annual vaccine</span><span class="st ok">Sent</span></div>
+        <div class="q"><span class="pi">BL</span><span><b>Bella</b> · Deworming</span><span class="st due">Due in 3 days</span></div>
+        <div class="q"><span class="pi">SH</span><span><b>Sheru</b> · Check-up</span><span class="st bk">Booked</span></div>
+        <div class="q"><span class="pi">LN</span><span><b>Luna</b> · Medicine refill</span><span class="st ok">Sent</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5+1 -->
+<section class="mission" data-mark="5+1" data-say="Every 5th one helps a stray ♥">
+  <div class="wrap">
+    <div class="sec-head c" style="margin-bottom:0"><span class="eyebrow">The 5+1 mission</span><h2>Every five protected, one stray gets treated.</h2><p class="lede">Each fifth protection funds a vet procedure for a verified street dog or cat: sterilisation, wound care, or fracture treatment.</p></div>
+    <div class="paws" id="paws"></div>
+    <p class="mmsg" id="mmsg">Tap to protect a dog or cat.</p>
+    <button class="btn btn-blue" id="protectBtn" type="button">Protect one</button>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="background:var(--tint)" data-mark="Help" data-say="Questions? Ask us!">
+  <div class="wrap">
+    <div class="sec-head c"><span class="eyebrow">Help</span><h2>Questions owners ask</h2></div>
+    <div class="faq">
+      <details open><summary>Is the ID really free?</summary><p>Yes. The digital ID, health record and reminders are free. You only pay if you order a printed card or tag, or buy insurance.</p></details>
+      <details><summary>Is this an official government registration?</summary><p>No. It is a private ID from IndiaPetInsurance.com. Your city may also require a municipal dog licence. You can add your licence number to the ID so everything is in one place.</p></details>
+      <details><summary>Why do you ask for my ID proof?</summary><p>Insurers need KYC before issuing a policy, and municipal licences need owner ID and address proof. You can skip it now and add it when you buy insurance.</p></details>
+      <details><summary>Can I add records from my current vet?</summary><p>Yes. Upload vaccination cards, prescriptions and reports from any clinic, partner or not.</p></details>
+      <details><summary>Who provides the insurance?</summary><p>A licensed insurer, arranged through an IRDAI-registered intermediary. Their names and registration numbers will be shown before any plan goes on sale.</p></details>
+    </div>
+  </div>
+</section>
+
+<section style="padding-block:clamp(40px,6vw,80px)" data-mark="Start" data-say="Let's make my ID!">
+  <div class="wrap"><div class="final">
+    <div><h2>Your best friend's ID is 3 minutes away.</h2><p>Free digital card today. Printed card and steel tag delivered across India.</p></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-saffron" type="button" data-start="dog">Start with my dog</button><button class="btn btn-ghost" type="button" data-start="cat">Start with my cat</button></div>
+  </div></div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div><a class="logo" href="#top"><span class="mk"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg></span><span>IndiaPetInsurance<small>.com</small></span></a><p style="margin-top:12px">A dog and cat protection and healthcare platform by Scram Technologies Pvt. Ltd. Starting in Jammu.</p></div>
+      <div><b>Owners</b><ul><li>Digital ID card</li><li>Printed card and tag</li><li>Insurance</li><li>Health guides</li></ul></div>
+      <div><b>Partners</b><ul><li>Veterinary clinics</li><li>Groomers and stores</li><li>Diagnostics</li><li>Help a Stray (later)</li></ul></div>
+    </div>
+    <p class="disclosure"><b>Insurance disclosure (to complete before launch):</b> Insurance is the subject matter of solicitation. Products are offered by [Insurer name] through [Intermediary name], IRDAI Registration No. [—]. Membership benefits are separate from insurance cover. Read the policy wording carefully before buying.</p>
+  </div>
+</footer>
+
+<!-- WIZARD -->
+<div id="wiz" hidden role="dialog" aria-modal="true" aria-label="Create an ID">
+  <div class="wz-top">
+    <a class="logo" href="#top" aria-label="IndiaPetInsurance.com"><span class="mk"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg></span></a>
+    <div class="wz-prog"><small id="wzLabel">Step 1 of 12</small><div class="bar"><i id="wzBar"></i></div></div>
+    <button class="xbtn" id="wzClose" type="button" aria-label="Close and save draft"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="wz-body" id="wzBody">
+    <div class="wz-pane" id="wzPane"><div class="wz-q" id="wzQ"></div>
+      <div class="wz-foot" id="wzFoot"><div class="in"><button class="btn btn-ghost" type="button" id="wzBack">Back</button><button class="btn btn-blue" type="button" id="wzNext">Continue</button></div></div>
+    </div>
+    <div class="wz-side" id="wzSide"><div class="cardbox"><div class="flipper" id="wzFlip"><div class="in"><div class="idc-wrap" id="wzFront"></div><div class="idc-wrap b" id="wzBackCard"></div></div></div><div class="meter">ID <b id="wzPct">0%</b> ready</div><button class="fliphint" type="button" id="wzFlipBtn">Flip card</button></div></div>
+  </div>
+</div>
+<canvas id="confetti" hidden></canvas>
+<script src="assets/app.js" defer></script>
+</body>
+</html>
