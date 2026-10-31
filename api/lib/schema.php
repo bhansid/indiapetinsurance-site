@@ -129,6 +129,15 @@ function schema_statements(string $driver): array {
 function migrations(): array {
     return [
         'ALTER TABLE users ADD COLUMN marketing TINYINT NOT NULL DEFAULT 0',
+        // Payments (Razorpay)
+        "ALTER TABLE orders ADD COLUMN payment_method VARCHAR(10) NOT NULL DEFAULT 'cod'",
+        "ALTER TABLE orders ADD COLUMN payment_status VARCHAR(20) NOT NULL DEFAULT 'cod'",
+        'ALTER TABLE orders ADD COLUMN amount_paise INT NOT NULL DEFAULT 0',
+        'ALTER TABLE orders ADD COLUMN rzp_order_id VARCHAR(40) NULL',
+        'ALTER TABLE orders ADD COLUMN rzp_payment_id VARCHAR(40) NULL',
+        'ALTER TABLE orders ADD COLUMN paid_at DATETIME NULL',
+        'ALTER TABLE orders ADD COLUMN rzp_mode VARCHAR(5) NULL',
+        'CREATE INDEX idx_orders_rzp ON orders (rzp_order_id)',
     ];
 }
 function run_migrations(PDO $pdo): void {

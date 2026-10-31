@@ -26,6 +26,7 @@ if (!$done && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         if (strlen($aPass) < 10) throw new RuntimeException('Use a superadmin password of at least 10 characters.');
         $pdo = new PDO("mysql:host=$host;dbname=$name;charset=utf8mb4", $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
         run_schema($pdo, 'mysql');
+        run_migrations($pdo);
         $cnt = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'superadmin'")->fetchColumn();
         if ($cnt === 0) {
             $pdo->prepare('INSERT INTO users (role, name, email, mobile, password_hash, status, mobile_verified, created_at) VALUES (?,?,?,?,?,?,?,?)')

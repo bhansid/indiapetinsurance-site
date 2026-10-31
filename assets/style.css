@@ -652,3 +652,5 @@ body[data-page="account"] .legalbar{margin-bottom:24px}
 .pm-foot{display:flex;justify-content:space-between;gap:10px;padding:14px 22px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
 .pm-foot .btn-blue{flex:1;max-width:320px}
 @media (max-width:640px){.pm{padding:0;place-items:end stretch}.pm-sheet{border-radius:24px 24px 0 0;max-height:92vh;max-height:92dvh;width:100%}.pm-head,.pm-body,.pm-foot{padding-left:16px;padding-right:16px}.pm-foot .btn{width:auto}.pm-foot .btn-blue{max-width:none}}
+.paychoice{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:520px){.paychoice{grid-template-columns:1fr}}

@@ -184,7 +184,7 @@ let step=0, goal='', flash='', errs={}, view='steps', otpSent=false;
 const wiz=$('#wiz'), Q=$('#wzQ');
 function firstIncomplete(){for(let i=0;i<STEPS.length;i++){if(Object.keys(validate(STEPS[i])).length)return i}return STEPS.length-1}
 function prefill(){const p=(ME&&ME.profile)||{},u=(ME&&ME.user)||{};return {oName:u.name||p.oName||'',oMobile:u.mobile||p.oMobile||'',oEmail:p.oEmail||'',oHouse:p.oHouse||'',oLocality:p.oLocality||'',oCity:p.oCity||'Jammu',oState:p.oState||'Jammu and Kashmir',oPin:p.oPin||'',eName:p.eName||'',eMobile:p.eMobile||''}}
-function resetFlow(){MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';order={prod:'kit',size:'M'};ins={plan:'complete',si:'50000',ill:'',pre:''};step=0}
+function resetFlow(){MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';order={prod:'kit',size:'M',pay:'online'};ins={plan:'complete',si:'50000',ill:'',pre:''};step=0}
 function open(spc,g,fresh){load();if(fresh){S={...blank(),...prefill()};resetFlow();save()}goal=g||'';errs={};if(goal==='insure'&&!S.idNo)S.entry='insurance';else if(!S.name&&!S.idNo)S.entry=S.entry||'id';
   if(S.idNo&&S.cTerms){view='result'}else{view='steps';if(!S.name){if(spc){S.species=spc;step=1}else step=0}else step=firstIncomplete()}
   wiz.hidden=false;document.body.classList.add('wiz-open');render();if(innerWidth>900)setTimeout(()=>{const f=Q.querySelector('input,button');f&&f.focus({preventScroll:true})},60)}
@@ -342,7 +342,7 @@ function next(){const id=STEPS[step];errs=validate(id);if(Object.keys(errs).leng
 $('#wzNext').onclick=next;$('#wzBack').onclick=()=>{if(step>0){step--;errs={};render();$('#wzPane').scrollTop=0}};
 
 /* ================= RESULT ================= */
-let orderStep='', insStep='', order={prod:'kit',size:'M'}, ins={plan:'complete',si:'50000',ill:'',pre:''};
+let orderStep='', insStep='', order={prod:'kit',size:'M',pay:'online'}, ins={plan:'complete',si:'50000',ill:'',pre:''};
 let busy=false,loginBox=false;
 async function createID(){
   if(busy)return;busy=true;const nb=$('#wzNext');nb.disabled=true;nb.textContent='Creating ID…';
@@ -434,18 +434,23 @@ function renderResult(){
   if(goal==='insure'){goal='';setTimeout(()=>jump('insure'),500)}
 }
 function orderHTML(){const nm=esc(S.name),P=`₹${KIT_PRICE.toLocaleString('en-IN')}`;
-  if(orderStep==='done')return `<div class="kit-done"><span class="eyebrow" style="color:var(--green)">✓ Order placed</span><h3>${nm}'s safety kit is ordered.</h3><div class="done-msg">Order ${esc(order.no)}: safety kit with ${esc(order.size)} collar for ${nm}. Total ${P} including delivery, payable on delivery. We'll confirm dispatch on WhatsApp.</div></div>`;
+  if(orderStep==='done')return order.paid
+    ?`<div class="kit-done"><span class="eyebrow" style="color:var(--green)">✓ Payment received</span><h3>Paid! ${nm}'s safety kit is ordered.</h3><div class="done-msg">Order ${esc(order.no)}: safety kit with ${esc(order.size)} collar for ${nm}. ${P} paid online${order.paymentId?` · Payment ID ${esc(order.paymentId)}`:''}. We'll confirm dispatch on WhatsApp.</div></div>`
+    :`<div class="kit-done"><span class="eyebrow" style="color:var(--green)">✓ Order placed</span><h3>${nm}'s safety kit is ordered.</h3><div class="done-msg">Order ${esc(order.no)}: safety kit with ${esc(order.size)} collar for ${nm}. Total ${P} including delivery, payable on delivery. We'll confirm dispatch on WhatsApp.</div></div>`;
   if(orderStep==='addr')return `<div class="blk-h"><div><span class="eyebrow saffron">Safety kit · delivery</span><h3>Where should we deliver ${nm}'s kit?</h3></div><span class="chip">${esc(order.size)} collar · ${P}</span></div>
    <div class="grid2"><div class="fld"><label for="oa1">Name</label><input class="inp" id="oa1" value="${esc(S.oName)}" autocomplete="name"></div><div class="fld"><label for="oa2">Mobile</label><div class="pfx"><span>+91</span><input class="inp" id="oa2" inputmode="numeric" maxlength="10" value="${esc(S.oMobile)}" autocomplete="tel-national"></div></div></div>
    <div class="fld"><label for="oa3">Address</label><input class="inp" id="oa3" value="${esc([S.oHouse,S.oLocality].filter(Boolean).join(', '))}" autocomplete="street-address"></div>
    <div class="grid3"><div class="fld"><label for="oa4">City</label><input class="inp" id="oa4" value="${esc(S.oCity)}"></div><div class="fld"><label for="oa5">State</label><input class="inp" id="oa5" value="${esc(S.oState)}"></div><div class="fld"><label for="oa6">PIN</label><input class="inp" id="oa6" inputmode="numeric" maxlength="6" value="${esc(S.oPin)}"></div></div>
-   <div class="kit-total"><span>Safety kit (${esc(order.size)} collar)</span><span>${P}</span><span>Delivery</span><span class="free">Included</span><b>Total, pay on delivery</b><b>${P}</b></div>
+   <div class="kit-total"><span>Safety kit (${esc(order.size)} collar)</span><span>${P}</span><span>Delivery</span><span class="free">Included</span><b id="oTotLbl">${order.pay==='cod'?'Total, pay on delivery':'Total, pay now'}</b><b>${P}</b></div>
+   <div class="fld"><span class="lb">How would you like to pay?</span><div class="paychoice" role="group" aria-label="Payment method">
+     <button type="button" class="choice" data-pay="online" aria-pressed="${order.pay!=='cod'}">Pay online now<small>UPI, cards, netbanking or wallets · secured by Razorpay</small></button>
+     <button type="button" class="choice" data-pay="cod" aria-pressed="${order.pay==='cod'}">Cash on delivery<small>Pay cash or UPI to the courier</small></button></div></div>
    <span class="errm" id="oErr"></span>
-   <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-ghost" type="button" id="oBack">Back</button><button class="btn btn-saffron" type="button" id="oPlace">Place order · ${P} on delivery</button></div><p class="hint">By placing the order you agree to our <a href="/refund-policy/" target="_blank" rel="noopener">Returns &amp; Refund Policy</a>.</p>`;
+   <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-ghost" type="button" id="oBack">Back</button><button class="btn btn-saffron" type="button" id="oPlace">${placeLabel()}</button></div><p class="hint">By placing the order you agree to our <a href="/refund-policy/" target="_blank" rel="noopener">Returns &amp; Refund Policy</a>.</p>`;
   return `<div class="kit"><div class="kit-art">${kitArt(S.name)}<span class="kit-badge">${P}<small>incl. delivery</small></span></div>
    <div class="kit-info"><span class="eyebrow saffron">${nm}'s safety kit</span><h3>Everything ${nm} needs to find the way home.</h3>${kitInfoHTML(nm)}
    <div class="fld"><span class="lb">Collar size</span><div class="pills">${SIZES.map(([k,c])=>`<button type="button" class="pill" data-size="${k}" aria-pressed="${order.size===k}">${k} <small style="font-weight:600;opacity:.75">${c}</small></button>`).join('')}</div><span class="hint">Measure around ${nm}'s neck and add two fingers of space.</span></div>
-   <div class="kit-buy"><div><b>${P}</b><span>Including delivery · Pay on delivery</span></div><button class="btn btn-saffron kit-cta" type="button" id="oNext">Order the kit →</button></div></div></div>`}
+   <div class="kit-buy"><div><b>${P}</b><span>Including delivery · Pay online or on delivery</span></div><button class="btn btn-saffron kit-cta" type="button" id="oNext">Order the kit →</button></div></div></div>`}
 /* ---- Plan details (same facts as /insurance/) ---- */
 const PLANS={
  essential:{title:'Essential',short:'Insurance, 10 WhatsApp vet consults a year, steel QR tag, partner clinic savings',tag:'Insurance plus everyday protection',
@@ -493,21 +498,49 @@ function bindResult(){
   $('#resFlip').onclick=()=>$('#resFlip').classList.toggle('flipped');$('#resFlipBtn').onclick=()=>$('#resFlip').classList.toggle('flipped');
   Q.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>jump(b.dataset.jump));
   Q.querySelectorAll('[data-toast]').forEach(b=>b.onclick=()=>toast(b.dataset.toast));
-  $('#addAnother').onclick=()=>{order={prod:'kit',size:'M'};const keep=ME.user?{oName:S.oName,oMobile:S.oMobile,oEmail:S.oEmail,oHouse:S.oHouse,oLocality:S.oLocality,oCity:S.oCity,oState:S.oState,oPin:S.oPin,eName:S.eName,eMobile:S.eMobile}:{};S={...blank(),...keep};MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';step=0;view='steps';save();Q.removeAttribute('style');render()};
+  $('#addAnother').onclick=()=>{order={prod:'kit',size:'M',pay:'online'};const keep=ME.user?{oName:S.oName,oMobile:S.oMobile,oEmail:S.oEmail,oHouse:S.oHouse,oLocality:S.oLocality,oCity:S.oCity,oState:S.oState,oPin:S.oPin,eName:S.eName,eMobile:S.eMobile}:{};S={...blank(),...keep};MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';step=0;view='steps';save();Q.removeAttribute('style');render()};
   setupDownload();bindOrder();bindIns();
 }
+function placeLabel(){const P=`₹${KIT_PRICE.toLocaleString('en-IN')}`;if(order.pay==='cod')return `Place order · ${P} on delivery`;return order.pending?`Try payment again · ${P}`:`Pay ${P} securely`}
+/* ---- Razorpay Standard Checkout ---- */
+function loadCheckout(){return new Promise((res,rej)=>{if(window.Razorpay)return res();const old=document.getElementById('rzp-js');if(old)old.remove();const sc=document.createElement('script');sc.id='rzp-js';sc.src='https://checkout.razorpay.com/v1/checkout.js';sc.async=true;sc.onload=()=>window.Razorpay?res():rej(new Error('no Razorpay'));sc.onerror=()=>rej(new Error('load failed'));document.head.appendChild(sc)})}
+function paidDone(no,pid){order.paid=true;order.paymentId=pid||'';order.no=no;order.pending='';orderStep='done';const b=$('#b-order');b.innerHTML=orderHTML();bindOrder();confetti(120);jump('order')}
+async function payOnline(no){
+  const err=t=>{const e=$('#oErr');if(e)e.textContent=t};
+  const reset=lbl=>{const p=$('#oPlace');if(p){p.disabled=false;p.textContent=lbl||placeLabel()}};
+  try{await loadCheckout()}catch(e){reset();err('Could not load the payment window. Check your internet and try again, or choose cash on delivery.');return}
+  let o;
+  try{o=await api('create-order',{order_no:no})}
+  catch(e){if(e.code==='already_paid'){paidDone(no,'');return}reset();err(e.error||'Could not start the payment. Please try again, or choose cash on delivery.');return}
+  let settled=false;
+  const rzp=new window.Razorpay({
+    key:o.key_id,amount:o.amount,currency:o.currency,order_id:o.order_id,
+    name:o.name,description:o.description,image:SITE+'/assets/icon-192.png',
+    prefill:o.prefill,notes:{order_no:no},theme:{color:'#2457F5'},
+    handler:async r=>{settled=true;const p=$('#oPlace');if(p){p.disabled=true;p.textContent='Confirming payment…'}err('');
+      try{const v=await api('verify-payment',{razorpay_order_id:r.razorpay_order_id,razorpay_payment_id:r.razorpay_payment_id,razorpay_signature:r.razorpay_signature});paidDone(v.order_no||no,v.payment_id)}
+      catch(e){reset('Payment not confirmed');err((e.error||'We could not confirm this payment.')+` Your order number is ${no}. Write to support@indiapetinsurance.com if money was deducted.`)}},
+    modal:{ondismiss:()=>{if(settled)return;reset();err('Payment cancelled. Nothing was charged. You can try again, or switch to cash on delivery.')}}
+  });
+  rzp.on('payment.failed',r=>{const d=(r&&r.error)||{};err('Payment failed'+(d.description?': '+d.description:'.')+' Try another method in the payment window, or close it and choose cash on delivery.')});
+  rzp.open()}
 function bindOrder(){const b=$('#b-order');
   b.querySelectorAll('[data-size]').forEach(x=>x.onclick=()=>{order.size=x.dataset.size;order.sizeSet=true;b.innerHTML=orderHTML();bindOrder()});
+  b.querySelectorAll('[data-pay]').forEach(x=>x.onclick=()=>{order.pay=x.dataset.pay;b.querySelectorAll('[data-pay]').forEach(y=>y.setAttribute('aria-pressed',y===x));const p=$('#oPlace');if(p)p.textContent=placeLabel();const t=$('#oTotLbl');if(t)t.textContent=order.pay==='cod'?'Total, pay on delivery':'Total, pay now';const e=$('#oErr');if(e)e.textContent=''});
   const n=$('#oNext');if(n)n.onclick=()=>{orderStep='addr';b.innerHTML=orderHTML();bindOrder();jump('order')};
   const bk=$('#oBack');if(bk)bk.onclick=()=>{orderStep='';b.innerHTML=orderHTML();bindOrder()};
-  const pl=$('#oPlace');if(pl)pl.onclick=()=>{const m=$('#oa2').value.replace(/\D/g,''),p=$('#oa6').value.replace(/\D/g,''),a=$('#oa3').value;
-    if(!/^[6-9]\d{9}$/.test(m)){$('#oErr').textContent='Enter a valid 10-digit mobile.';return}if(!/^\d{6}$/.test(p)){$('#oErr').textContent='PIN codes are 6 digits.';return}if(!a.trim()){$('#oErr').textContent='Add a delivery address.';return}
-    pl.disabled=true;pl.textContent='Placing…';
-    const ok=no=>{order.no=no;orderStep='done';b.innerHTML=orderHTML();confetti(90);jump('order')};
-    if(!S.saved){ok('ORD-'+(hash(S.idNo+Date.now())%90000+10000));return}
-    api('order.php',{id_no:S.idNo,product:'kit',size:order.size,name:$('#oa1').value,mobile:m,address:a,city:$('#oa4').value,state:$('#oa5').value,pin:p})
-      .then(j=>ok(j.order_no))
-      .catch(e=>{pl.disabled=false;pl.textContent=`Place order · ₹${KIT_PRICE.toLocaleString('en-IN')} on delivery`;$('#oErr').textContent=e.error||'Could not place the order. Please try again.'})}}
+  const pl=$('#oPlace');if(pl)pl.onclick=()=>{const m=$('#oa2').value.replace(/\D/g,''),p=$('#oa6').value.replace(/\D/g,''),a=$('#oa3').value,errEl=$('#oErr');
+    if(!/^[6-9]\d{9}$/.test(m)){errEl.textContent='Enter a valid 10-digit mobile.';return}if(!/^\d{6}$/.test(p)){errEl.textContent='PIN codes are 6 digits.';return}if(!a.trim()){errEl.textContent='Add a delivery address.';return}
+    errEl.textContent='';pl.disabled=true;pl.textContent=order.pay==='cod'?'Placing…':'Opening secure payment…';
+    const codDone=no=>{order.no=no;order.paid=false;order.pending='';orderStep='done';b.innerHTML=orderHTML();bindOrder();confetti(90);jump('order')};
+    const fail=e=>{pl.disabled=false;pl.textContent=placeLabel();errEl.textContent=e.error||'Could not place the order. Please try again.'};
+    if(!S.saved){if(order.pay==='cod'){codDone('ORD-'+(hash(S.idNo+Date.now())%90000+10000));return}fail({error:'Online payment needs your ID saved to an account. Choose cash on delivery, or make the ID again when you are online.'});return}
+    if(order.pending){ // an earlier online attempt exists for this order
+      if(order.pay==='cod'){api('order.php',{order_no:order.pending,payment:'cod'}).then(j=>j.payment==='paid'?paidDone(j.order_no,''):codDone(j.order_no)).catch(fail);return}
+      payOnline(order.pending);return}
+    api('order.php',{id_no:S.idNo,product:'kit',size:order.size,name:$('#oa1').value,mobile:m,address:a,city:$('#oa4').value,state:$('#oa5').value,pin:p,payment:order.pay==='cod'?'cod':'online'})
+      .then(j=>{if(j.payment==='online'){order.pending=j.order_no;payOnline(j.order_no)}else codDone(j.order_no)})
+      .catch(fail)}}
 function bindIns(){const b=$('#b-insure');
   b.querySelectorAll('[data-plan]').forEach(x=>x.onclick=()=>{ins.plan=x.dataset.plan;b.innerHTML=insHTML();bindIns()});
   b.querySelectorAll('[data-plandetail]').forEach(x=>x.onclick=()=>planDetails(x.dataset.plandetail));

@@ -25,6 +25,25 @@ $__cfgPath = ipi_config_path();
 if ($__cfgPath) { $GLOBALS['IPI_CFG'] = require $__cfgPath; }
 
 function cfg(string $k, $default = null) { return $GLOBALS['IPI_CFG'][$k] ?? $default; }
+
+/**
+ * Secrets (payment keys) come from environment variables or a .env file.
+ * Looked up in order: real environment, ../.env (one folder above public_html, recommended), ./.env (blocked by .htaccess).
+ */
+function load_env(): void {
+    foreach (array_unique([IPI_HOME . '/.env', IPI_PUBLIC . '/.env']) as $file) {
+        if (!is_file($file) || !is_readable($file)) continue;
+        foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) continue;
+            [$k, $v] = array_map('trim', explode('=', $line, 2));
+            $v = trim($v, "\"'");
+            if ($k !== '' && getenv($k) === false) { putenv("$k=$v"); $_ENV[$k] = $v; }
+        }
+    }
+}
+load_env();
+function env(string $k, ?string $default = null): ?string { $v = getenv($k); return ($v === false || $v === '') ? $default : $v; }
 function installed(): bool { return is_array($GLOBALS['IPI_CFG']) && !empty($GLOBALS['IPI_CFG']['installed']); }
 
 function db(): PDO {
@@ -40,7 +59,7 @@ function db(): PDO {
         $pdo->exec("SET time_zone = '+05:30'");
     }
     // One-time upgrades after a deploy (marker file lives next to the uploads, outside the web root)
-    $marker = upload_dir() . '/.schema-v2';
+    $marker = upload_dir() . '/.schema-v3';
     if (!is_file($marker)) {
         require_once __DIR__ . '/schema.php';
         run_migrations($pdo);

@@ -4,3 +4,8 @@ uploads/*
 !uploads/.htaccess
 !uploads/index.php
 .DS_Store
+
+# Secrets
+.env
+.env.*
+!.env.example

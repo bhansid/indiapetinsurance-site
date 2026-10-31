@@ -56,7 +56,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=11">
+<link rel="stylesheet" href="/assets/style.css?v=12">
 </head>
 <?php
 $paw = '<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg>';
@@ -87,7 +87,7 @@ if (!$me): ?>
   $quotes = q('SELECT x.*, p.name AS pet FROM quotes x JOIN pets p ON p.id = x.pet_id WHERE x.owner_id = ? ORDER BY x.id DESC', [$me['id']])->fetchAll();
   $docsFor = function (int $pid): array { return q('SELECT id, kind, label, original_name, mime FROM documents WHERE pet_id = ? ORDER BY id', [$pid])->fetchAll(); };
   $prodLabel = function (string $p): string { return strpos($p, 'kit:') === 0 ? 'Safety kit · collar ' . substr($p, 4) : (['card' => 'PVC card', 'tag' => 'Steel tag', 'combo' => 'Card + tag'][$p] ?? $p); };
-  $statusText = ['new' => 'Received', 'confirmed' => 'Confirmed', 'printed' => 'Being made', 'shipped' => 'Shipped', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled', 'contacted' => 'Advisor in touch', 'quoted' => 'Quote sent', 'converted' => 'Policy issued', 'closed' => 'Closed'];
+  $statusText = ['pending_payment' => 'Awaiting payment', 'new' => 'Received', 'confirmed' => 'Confirmed', 'printed' => 'Being made', 'shipped' => 'Shipped', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled', 'contacted' => 'Advisor in touch', 'quoted' => 'Quote sent', 'converted' => 'Policy issued', 'closed' => 'Closed'];
   $kindText = ['photo' => 'Photo', 'record' => 'Health record', 'kyc' => 'ID proof', 'angle' => 'Insurance photo'];
   $first = explode(' ', $me['name'])[0];
 ?>
@@ -137,7 +137,7 @@ if (!$me): ?>
   <div class="acct-two">
     <section class="blk"><h3>Kit orders</h3>
       <?php if (!$orders): ?><p class="hint">No orders yet. Order a safety kit from any ID above.</p><?php endif; ?>
-      <?php foreach ($orders as $o): ?><div class="acct-row"><div><b class="mono"><?= e($o['order_no']) ?></b><span><?= e($prodLabel($o['product'])) ?> for <?= e($o['pet']) ?> · <?= date('j M Y', strtotime($o['created_at'])) ?></span></div><span class="chip"><?= e($statusText[$o['status']] ?? $o['status']) ?></span></div><?php endforeach; ?>
+      <?php foreach ($orders as $o): ?><div class="acct-row"><div><b class="mono"><?= e($o['order_no']) ?></b><span><?= e($prodLabel($o['product'])) ?> for <?= e($o['pet']) ?> · <?= date('j M Y', strtotime($o['created_at'])) ?></span></div><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><?php if (($o['payment_status'] ?? '') === 'paid'): ?><span class="chip" style="background:var(--green-soft);color:var(--green)">Paid online</span><?php elseif (($o['payment_status'] ?? '') === 'cod'): ?><span class="chip">Cash on delivery</span><?php endif; ?><span class="chip"><?= e($statusText[$o['status']] ?? $o['status']) ?></span></span></div><?php endforeach; ?>
     </section>
     <section class="blk"><h3>Insurance quote requests</h3>
       <?php if (!$quotes): ?><p class="hint">No quote requests yet. Get one from any ID above.</p><?php endif; ?>
@@ -171,7 +171,7 @@ if (!$me): ?>
   if ($a !== false && $b !== false) echo substr($home, $a, $b - $a);
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
-<script src="/assets/app.js?v=11" defer></script>
+<script src="/assets/app.js?v=12" defer></script>
 </body>
 <?php endif; ?>
 </html>

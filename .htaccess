@@ -1,4 +1,11 @@
 Options -Indexes
+
+# Never serve dotfiles such as .env
+<FilesMatch "^\.(env|git)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
 DirectoryIndex index.html index.php
 
 <IfModule mod_rewrite.c>
@@ -11,6 +18,11 @@ DirectoryIndex index.html index.php
 
   # Block private paths
   RewriteRule ^(\.git|api/lib|api/config\.php|uploads|tools)(/|$) - [F,L]
+  RewriteRule (^|/)\.env - [F,L]
+  RewriteRule (^|/)ipi-payments\.json$ - [F,L]
+
+  # Razorpay endpoints: /api/create-order, /api/verify-payment, /api/razorpay-webhook
+  RewriteRule ^api/(create-order|verify-payment|razorpay-webhook)/?$ api/$1.php [L,QSA]
 
   # Public "found pet" pages: /p/IPI-JK-26-123456
   RewriteRule ^p/([A-Za-z0-9-]+)/?$ p.php?id=$1 [L,QSA]

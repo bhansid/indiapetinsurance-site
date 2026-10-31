@@ -7,6 +7,7 @@
  */
 declare(strict_types=1);
 require dirname(__DIR__) . '/api/lib/bootstrap.php';
+require dirname(__DIR__) . '/api/lib/razorpay.php';
 header('X-Robots-Tag: noindex, nofollow');
 header('X-Frame-Options: DENY');
 if (!installed()) { header('Location: /install.php'); exit; }
@@ -27,11 +28,18 @@ function flash(string $msg, string $type = 'ok'): void { $_SESSION['flash'] = [$
 function go(string $qs): void { header('Location: /admin/?' . $qs); exit; }
 function q(string $sql, array $args = []): PDOStatement { $st = db()->prepare($sql); $st->execute($args); return $st; }
 function pill(string $s): string {
-    $map = ['active'=>'ok','delivered'=>'ok','converted'=>'ok','quoted'=>'ok','new'=>'warn','unread'=>'warn','confirmed'=>'','contacted'=>'','printed'=>'','shipped'=>'','disabled'=>'bad','cancelled'=>'bad','closed'=>'grey','flagged'=>'bad','read'=>'grey'];
+    $map = ['active'=>'ok','delivered'=>'ok','converted'=>'ok','quoted'=>'ok','new'=>'warn','unread'=>'warn','confirmed'=>'','contacted'=>'','printed'=>'','shipped'=>'','disabled'=>'bad','cancelled'=>'bad','closed'=>'grey','flagged'=>'bad','read'=>'grey','pending_payment'=>'grey'];
     return '<span class="pill ' . ($map[$s] ?? '') . '">' . e($s) . '</span>';
 }
 function fmt_dt(?string $d): string { return $d ? date('d M Y, g:i a', strtotime($d)) : '—'; }
-const ORDER_STATUS = ['new', 'confirmed', 'printed', 'shipped', 'delivered', 'cancelled'];
+const ORDER_STATUS = ['pending_payment', 'new', 'confirmed', 'printed', 'shipped', 'delivered', 'cancelled'];
+function pay_pill(array $r): string {
+    $ps = (string)($r['payment_status'] ?? 'cod');
+    if ($ps === 'paid') return '<span class="pill ok">Paid online</span>' . (!empty($r['rzp_mode']) && $r['rzp_mode'] === 'test' ? ' <span class="pill grey">test</span>' : '') . '<br><span class="small mono">' . e($r['rzp_payment_id'] ?? '') . '</span>';
+    if ($ps === 'pending') return '<span class="pill grey">Awaiting payment</span>';
+    return '<span class="pill warn">Cash on delivery</span>';
+}
+function mask_secret(string $v): string { return $v === '' ? '' : str_repeat('•', 8) . substr($v, -4); }
 const QUOTE_STATUS = ['new', 'contacted', 'quoted', 'converted', 'closed'];
 const PRODUCTS = ['card' => 'PVC card', 'tag' => 'Steel tag', 'combo' => 'Card + tag'];
 function product_label(string $p): string { if (strpos($p, 'kit:') === 0) return 'Safety kit · collar ' . substr($p, 4) . ' · ₹1,000 COD'; return PRODUCTS[$p] ?? $p; }
@@ -74,7 +82,7 @@ if ($page === 'export') {
     $t = $_GET['t'] ?? '';
     $sets = [
         'pets' => 'SELECT p.id_no, p.name, p.species, p.breed, p.gender, p.city, p.state, p.clinic, u.name AS owner, u.mobile, u.email, p.scan_count, p.status, p.created_at FROM pets p JOIN users u ON u.id = p.owner_id ORDER BY p.id DESC',
-        'orders' => 'SELECT o.order_no, p.id_no, p.name AS pet, o.product, o.ship_name, o.ship_mobile, o.ship_address, o.ship_city, o.ship_state, o.ship_pin, o.status, o.notes, o.created_at FROM orders o JOIN pets p ON p.id = o.pet_id ORDER BY o.id DESC',
+        'orders' => 'SELECT o.order_no, p.id_no, p.name AS pet, o.product, o.ship_name, o.ship_mobile, o.ship_address, o.ship_city, o.ship_state, o.ship_pin, o.status, o.payment_method, o.payment_status, o.amount_paise / 100 AS amount_rupees, o.rzp_payment_id, o.rzp_mode, o.paid_at, o.notes, o.created_at FROM orders o JOIN pets p ON p.id = o.pet_id ORDER BY o.id DESC',
         'quotes' => 'SELECT qq.quote_no, p.id_no, p.name AS pet, p.breed, qq.plan, qq.sum_insured, qq.ill_12m, qq.ongoing, u.name AS owner, u.mobile, qq.status, qq.notes, qq.created_at FROM quotes qq JOIN pets p ON p.id = qq.pet_id JOIN users u ON u.id = qq.owner_id ORDER BY qq.id DESC',
         'owners' => "SELECT u.name, u.mobile, u.email, u.marketing AS marketing_opt_in, u.status, u.created_at, u.last_login_at, (SELECT COUNT(*) FROM pets p WHERE p.owner_id = u.id) AS ids FROM users u WHERE u.role = 'owner' ORDER BY u.id DESC",
         'marketing' => "SELECT u.name, u.mobile, u.email, u.created_at FROM users u WHERE u.role = 'owner' AND u.marketing = 1 AND u.status = 'active' ORDER BY u.id DESC",
@@ -160,6 +168,45 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 if (strlen($new) < 10) throw new RuntimeException('New password must be at least 10 characters.');
                 q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $me['id']]);
                 log_activity((int)$me['id'], 'password_change'); flash('Password changed.'); break;
+            case 'pay_save':
+                if ($me['role'] !== 'superadmin') throw new RuntimeException('Only the superadmin can change payment settings.');
+                $cur = pay_settings(true); $new = $cur;
+                foreach (['test', 'live'] as $m) {
+                    $kid = trim((string)($_POST[$m . '_key_id'] ?? ''));
+                    if ($kid !== '' && !preg_match('/^rzp_' . $m . '_[A-Za-z0-9]{8,30}$/', $kid)) throw new RuntimeException(ucfirst($m) . ' Key ID should start with rzp_' . $m . '_');
+                    if ($kid !== '') $new[$m . '_key_id'] = $kid;
+                    $sec = trim((string)($_POST[$m . '_key_secret'] ?? ''));
+                    if ($sec !== '') { if (!preg_match('/^[A-Za-z0-9]{16,40}$/', $sec)) throw new RuntimeException(ucfirst($m) . ' Key Secret looks wrong. Copy it again from Razorpay.'); $new[$m . '_key_secret'] = $sec; }
+                    $wh = trim((string)($_POST[$m . '_webhook_secret'] ?? ''));
+                    if ($wh !== '') $new[$m . '_webhook_secret'] = $wh;
+                    if (!empty($_POST['clear_' . $m])) { unset($new[$m . '_key_id'], $new[$m . '_key_secret'], $new[$m . '_webhook_secret']); }
+                }
+                foreach (['test', 'live'] as $m) {
+                    $hasId = !empty($new[$m . '_key_id']); $hasSec = !empty($new[$m . '_key_secret']);
+                    if ($hasId !== $hasSec) throw new RuntimeException('Enter both the ' . $m . ' Key ID and Key Secret. They work as a pair.');
+                }
+                $mode = ($_POST['mode'] ?? 'test') === 'live' ? 'live' : 'test';
+                if ($mode === 'live' && ($cur['mode'] ?? '') !== 'live') {
+                    if (empty($_POST['confirm_live'])) throw new RuntimeException('Tick the box to confirm switching to LIVE payments (real money).');
+                }
+                $new['mode'] = $mode;
+                $new['updated_at'] = date('c'); $new['updated_by'] = $me['email'];
+                if (!save_pay_settings($new)) throw new RuntimeException('Could not save settings. The folder above public_html is not writable.');
+                if ($mode === 'live' && !rzp_configured('live')) { flash('Saved, but LIVE mode has no keys yet, so online payment is switched off until you add them.', 'err'); }
+                else flash('Payment settings saved. Mode: ' . strtoupper($mode) . '.');
+                log_activity((int)$me['id'], 'payment_settings', 'mode ' . $mode);
+                break;
+            case 'pay_test':
+                if ($me['role'] !== 'superadmin') throw new RuntimeException('Not allowed');
+                $m = ($_POST['which'] ?? 'test') === 'live' ? 'live' : 'test';
+                if (!rzp_configured($m)) throw new RuntimeException('Add the ' . $m . ' keys first.');
+                [$st, $res] = rzp_api('GET', '/v1/orders?count=1', null, $m);
+                if ($st === 200) flash(ucfirst($m) . ' keys work. Razorpay accepted them.');
+                elseif ($st === 401) throw new RuntimeException(ucfirst($m) . ' keys were rejected by Razorpay (authentication failed). Check the Key ID and Secret.');
+                elseif ($st === 0) throw new RuntimeException('Could not reach Razorpay from the server. Try again in a minute.');
+                else throw new RuntimeException('Razorpay replied with an error (HTTP ' . $st . '): ' . ($res['error']['description'] ?? 'unknown'));
+                log_activity((int)$me['id'], 'payment_keys_test', $m);
+                break;
             default: throw new RuntimeException('Unknown action');
         }
     } catch (Throwable $ex) { flash($ex->getMessage(), 'err'); }
@@ -172,6 +219,7 @@ $newOrders = (int)q("SELECT COUNT(*) FROM orders WHERE status = 'new'")->fetchCo
 $newQuotes = (int)q("SELECT COUNT(*) FROM quotes WHERE status = 'new'")->fetchColumn();
 $nav = ['dash' => ['Dashboard', 0], 'notifications' => ['Notifications', $unread], 'pets' => ['Dog & cat IDs', 0], 'orders' => ['Kit orders', $newOrders], 'quotes' => ['Insurance quotes', $newQuotes], 'owners' => ['Owners', 0]];
 if (can('team')) $nav['team'] = ['Team users', 0];
+if ($me['role'] === 'superadmin') $nav['payments'] = ['Payments', 0];
 $nav['activity'] = ['Activity log', 0];
 $nav['account'] = ['My account', 0];
 $titles = ['pet' => 'ID details'];
@@ -342,14 +390,14 @@ case 'quotes':
     $total = (int)q("SELECT COUNT(*) FROM $tbl x WHERE $where", $args)->fetchColumn();
     $rows = q("SELECT x.*, p.id_no, p.name AS pet, p.breed, u.name AS owner, u.mobile AS omobile FROM $tbl x JOIN pets p ON p.id = x.pet_id JOIN users u ON u.id = x.owner_id WHERE $where ORDER BY x.id DESC LIMIT $per OFFSET $off", $args)->fetchAll();
     ?>
-    <div class="head"><div><h1><?= $isO ? 'Kit orders' : 'Insurance quote requests' ?></h1><p class="muted"><?= $total ?> found<?= $isO ? ' · safety kits, ₹1,000 pay on delivery' : ' · follow up with a licensed advisor' ?></p></div><?php if (can('export')): ?><a class="btn ghost" href="/admin/?p=export&t=<?= $tbl ?>">Export CSV</a><?php endif; ?></div>
+    <div class="head"><div><h1><?= $isO ? 'Kit orders' : 'Insurance quote requests' ?></h1><p class="muted"><?= $total ?> found<?= $isO ? ' · safety kits, ₹1,000 · online or cash on delivery. Ship only orders marked Paid online or Cash on delivery.' : ' · follow up with a licensed advisor' ?></p></div><?php if (can('export')): ?><a class="btn ghost" href="/admin/?p=export&t=<?= $tbl ?>">Export CSV</a><?php endif; ?></div>
     <form class="filters" method="get"><input type="hidden" name="p" value="<?= $page ?>"><select name="st" onchange="this.form.submit()"><option value="">All statuses</option><?php foreach ($statuses as $s): ?><option <?= $stt === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select></form>
     <div class="card"><div class="tbl-wrap"><table>
-    <tr><th><?= $isO ? 'Order' : 'Request' ?></th><th>For</th><?= $isO ? '<th>Product</th><th>Deliver to</th>' : '<th>Plan</th><th>Health</th><th>Owner</th>' ?><th>Status &amp; notes</th><th>Created</th></tr>
+    <tr><th><?= $isO ? 'Order' : 'Request' ?></th><th>For</th><?= $isO ? '<th>Product</th><th>Payment</th><th>Deliver to</th>' : '<th>Plan</th><th>Health</th><th>Owner</th>' ?><th>Status &amp; notes</th><th>Created</th></tr>
     <?php foreach ($rows as $r): ?><tr>
       <td class="mono nowrap"><?= e($isO ? $r['order_no'] : $r['quote_no']) ?></td>
       <td><a href="/admin/?p=pet&id=<?= (int)$r['pet_id'] ?>"><?= e($r['pet']) ?></a><br><span class="muted small"><?= e($r['breed']) ?></span></td>
-      <?php if ($isO): ?><td><?= e(product_label($r['product'])) ?></td><td><?= e($r['ship_name']) ?> · +91 <?= e($r['ship_mobile']) ?><br><span class="small"><?= e($r['ship_address']) ?>, <?= e($r['ship_city']) ?>, <?= e($r['ship_state']) ?> <?= e($r['ship_pin']) ?></span></td>
+      <?php if ($isO): ?><td><?= e(product_label($r['product'])) ?></td><td class="nowrap"><?= pay_pill($r) ?></td><td><?= e($r['ship_name']) ?> · +91 <?= e($r['ship_mobile']) ?><br><span class="small"><?= e($r['ship_address']) ?>, <?= e($r['ship_city']) ?>, <?= e($r['ship_state']) ?> <?= e($r['ship_pin']) ?></span></td>
       <?php else: ?><td><?= e(ucfirst($r['plan'])) ?><br><span class="small">₹<?= number_format((int)$r['sum_insured']) ?> cover</span></td><td class="small">Ill in 12m: <?= e($r['ill_12m']) ?><br>Ongoing: <?= e($r['ongoing']) ?></td><td><?= e($r['owner']) ?><br><a class="small" href="https://wa.me/91<?= e($r['omobile']) ?>" target="_blank" rel="noopener">+91 <?= e($r['omobile']) ?></a></td><?php endif; ?>
       <td style="min-width:220px"><?php if (can('status')): ?><form method="post" class="form" style="gap:6px"><?= csrf_field() ?><input type="hidden" name="a" value="<?= $isO ? 'order_status' : 'quote_status' ?>"><input type="hidden" name="id" value="<?= (int)$r['id'] ?>"><input type="hidden" name="back" value="p=<?= $page ?>"><select name="status"><?php foreach ($statuses as $s): ?><option <?= $r['status'] === $s ? 'selected' : '' ?>><?= $s ?></option><?php endforeach; ?></select><input name="notes" value="<?= e($r['notes']) ?>" placeholder="Notes"><button class="btn sm">Save</button></form><?php else: ?><?= pill($r['status']) ?><?php endif; ?></td>
       <td class="nowrap"><?= fmt_dt($r['created_at']) ?></td></tr><?php endforeach; ?>
@@ -398,6 +446,50 @@ case 'activity':
     <div class="card"><div class="tbl-wrap"><table><tr><th>When</th><th>Who</th><th>Action</th><th>Details</th><th>IP</th></tr>
     <?php foreach ($rows as $r): ?><tr><td class="nowrap"><?= fmt_dt($r['created_at']) ?></td><td><?= e($r['name'] ?? 'Visitor') ?> <span class="muted small"><?= e($r['role'] ?? '') ?></span></td><td><code><?= e($r['action']) ?></code></td><td><?= e($r['details']) ?></td><td class="mono small"><?= e($r['ip']) ?></td></tr><?php endforeach; ?>
     </table></div></div>
+    <?php break;
+
+case 'payments':
+    if ($me['role'] !== 'superadmin') { echo '<p>Only the superadmin can see payment settings.</p>'; break; }
+    $ps = pay_settings(true); $mode = rzp_mode();
+    $paidCount = (int)q("SELECT COUNT(*) FROM orders WHERE payment_status = 'paid'")->fetchColumn();
+    $paidSum = (int)q("SELECT COALESCE(SUM(amount_paise),0) FROM orders WHERE payment_status = 'paid' AND (rzp_mode = 'live' OR rzp_mode IS NULL)")->fetchColumn();
+    $box = function (string $m) use ($ps) {
+        [$id, $sec, $src] = rzp_keys($m);
+        $wh = (string)($ps[$m . '_webhook_secret'] ?? '');
+        $label = $m === 'live' ? 'Live keys (real money)' : 'Test keys (no real money)';
+        ob_start(); ?>
+        <div class="card" style="margin:0"><div class="head" style="margin-bottom:8px"><h2><?= $label ?></h2><?= $id ? '<span class="pill ok">Saved' . ($src === 'env' ? ' (from .env)' : '') . '</span>' : '<span class="pill grey">Not set</span>' ?></div>
+          <div class="form">
+            <label><?= ucfirst($m) ?> Key ID<input name="<?= $m ?>_key_id" value="<?= e($src === 'admin' ? $id : '') ?>" placeholder="<?= $id && $src === 'env' ? e($id) : 'rzp_' . $m . '_…' ?>" autocomplete="off" spellcheck="false"></label>
+            <label><?= ucfirst($m) ?> Key Secret<input name="<?= $m ?>_key_secret" type="password" placeholder="<?= $sec ? e(mask_secret($sec)) . ' · leave blank to keep' : 'Paste the key secret' ?>" autocomplete="new-password" spellcheck="false"></label>
+            <label>Webhook secret <span class="muted">(optional)</span><input name="<?= $m ?>_webhook_secret" type="password" placeholder="<?= $wh ? e(mask_secret($wh)) . ' · leave blank to keep' : 'Only if you set up a webhook' ?>" autocomplete="new-password"></label>
+            <?php if ($src === 'admin'): ?><label class="inline" style="font-weight:600"><input type="checkbox" name="clear_<?= $m ?>" value="1" style="width:auto"> Remove saved <?= $m ?> keys</label><?php endif; ?>
+          </div></div>
+        <?php return ob_get_clean();
+    };
+    ?>
+    <div class="head"><div><h1>Payments</h1><p class="muted">Razorpay keys for online payments. Only you (superadmin) can see this page. Get keys from Razorpay Dashboard → Account &amp; Settings → API keys.</p></div></div>
+    <div class="kpis">
+      <div class="kpi"><span>Current mode</span><b style="color:<?= $mode === 'live' ? 'var(--green)' : 'var(--saffron)' ?>"><?= strtoupper($mode) ?></b><small><?= rzp_configured() ? 'Online payment is on' : 'No keys: online payment is off' ?></small></div>
+      <div class="kpi"><span>Paid orders</span><b><?= $paidCount ?></b><small>test and live</small></div>
+      <div class="kpi"><span>Collected live</span><b>₹<?= number_format($paidSum / 100) ?></b><small>online payments</small></div>
+    </div>
+    <form method="post" class="form" autocomplete="off"><?= csrf_field() ?><input type="hidden" name="a" value="pay_save">
+      <div class="card" style="margin:0"><h2>Mode</h2>
+        <div class="inline" style="gap:18px;margin:6px 0">
+          <label class="inline" style="font-weight:700"><input type="radio" name="mode" value="test" <?= $mode === 'test' ? 'checked' : '' ?> style="width:auto"> Test: fake payments with Razorpay test cards and UPI</label>
+          <label class="inline" style="font-weight:700"><input type="radio" name="mode" value="live" <?= $mode === 'live' ? 'checked' : '' ?> style="width:auto"> Live: real money</label>
+        </div>
+        <?php if ($mode !== 'live'): ?><label class="inline" style="font-weight:600"><input type="checkbox" name="confirm_live" value="1" style="width:auto"> I confirm I want to accept real payments (needed when switching to Live)</label><?php endif; ?>
+        <p class="muted small">Orders remember which mode they were paid in. Test payments show a "test" tag on Kit orders.</p>
+      </div>
+      <div class="split"><?= $box('test') ?><?= $box('live') ?></div>
+      <button class="btn" style="justify-self:start">Save payment settings</button>
+    </form>
+    <div class="card" style="margin-top:16px"><h2>Check the keys</h2><p class="muted small">Asks Razorpay whether the saved keys are valid. No money moves.</p>
+      <div class="inline"><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="a" value="pay_test"><button class="btn ghost sm" name="which" value="test">Test the test keys</button><button class="btn ghost sm" name="which" value="live">Test the live keys</button></form></div></div>
+    <div class="card"><h2>Webhook (recommended before going live)</h2><p class="small">So payments are recorded even if a buyer closes the page right after paying. In Razorpay Dashboard → Webhooks, add:</p>
+      <p><code><?= e(site_url('api/razorpay-webhook')) ?></code></p><p class="small">Events: <b>payment.captured</b> and <b>order.paid</b>. Set a secret there, then paste the same secret above.</p></div>
     <?php break;
 
 case 'account':
