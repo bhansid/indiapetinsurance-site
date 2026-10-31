@@ -505,25 +505,36 @@ function placeLabel(){const P=`₹${KIT_PRICE.toLocaleString('en-IN')}`;if(order
 /* ---- Razorpay Standard Checkout ---- */
 function loadCheckout(){return new Promise((res,rej)=>{if(window.Razorpay)return res();const old=document.getElementById('rzp-js');if(old)old.remove();const sc=document.createElement('script');sc.id='rzp-js';sc.src='https://checkout.razorpay.com/v1/checkout.js';sc.async=true;sc.onload=()=>window.Razorpay?res():rej(new Error('no Razorpay'));sc.onerror=()=>rej(new Error('load failed'));document.head.appendChild(sc)})}
 function paidDone(no,pid){order.paid=true;order.paymentId=pid||'';order.no=no;order.pending='';orderStep='done';const b=$('#b-order');b.innerHTML=orderHTML();bindOrder();confetti(120);jump('order')}
-async function payOnline(no){
-  const err=t=>{const e=$('#oErr');if(e)e.textContent=t};
+// Instagram, Facebook and other in-app browsers can't show Razorpay's pop-up, so they use Razorpay's own payment page
+const IN_APP=/Instagram|FBAN|FBAV|FB_IAB|FBIOS|Snapchat|Line\/|LinkedInApp|; wv\)/i.test(navigator.userAgent||'');
+async function payOnline(no,useRedirect){
+  const redirect=!!useRedirect||IN_APP;
+  const errEl=()=>$('#oErr');
+  const err=(t,offerRedirect)=>{const e=errEl();if(!e)return;e.textContent=t;if(offerRedirect){const bt=document.createElement('button');bt.type='button';bt.className='btn btn-blue btn-sm';bt.style.marginTop='10px';bt.style.display='flex';bt.textContent='Pay on Razorpay\'s secure page →';bt.onclick=()=>{e.textContent='';const p=$('#oPlace');if(p){p.disabled=true;p.textContent='Opening Razorpay…'}payOnline(no,true)};e.appendChild(bt)}};
   const reset=lbl=>{const p=$('#oPlace');if(p){p.disabled=false;p.textContent=lbl||placeLabel()}};
   try{await loadCheckout()}catch(e){reset();err('Could not load the payment window. Check your internet and try again, or choose cash on delivery.');return}
   let o;
   try{o=await api('create-order',{order_no:no})}
   catch(e){if(e.code==='already_paid'){paidDone(no,'');return}reset();err(e.error||'Could not start the payment. Please try again, or choose cash on delivery.');return}
-  let settled=false;
-  const rzp=new window.Razorpay({
+  let settled=false,openedAt=0;
+  const opts={
     key:o.key_id,amount:o.amount,currency:o.currency,order_id:o.order_id,
     name:o.name,description:o.description,image:SITE+'/assets/icon-192.png',
     prefill:o.prefill,notes:{order_no:no},theme:{color:'#2457F5'},
     handler:async r=>{settled=true;const p=$('#oPlace');if(p){p.disabled=true;p.textContent='Confirming payment…'}err('');
       try{const v=await api('verify-payment',{razorpay_order_id:r.razorpay_order_id,razorpay_payment_id:r.razorpay_payment_id,razorpay_signature:r.razorpay_signature});paidDone(v.order_no||no,v.payment_id)}
       catch(e){reset('Payment not confirmed');err((e.error||'We could not confirm this payment.')+` Your order number is ${no}. Write to support@indiapetinsurance.com if money was deducted.`)}},
-    modal:{ondismiss:()=>{if(settled)return;reset();err('Payment cancelled. Nothing was charged. You can try again, or switch to cash on delivery.')}}
-  });
-  rzp.on('payment.failed',r=>{const d=(r&&r.error)||{};err('Payment failed'+(d.description?': '+d.description:'.')+' Try another method in the payment window, or close it and choose cash on delivery.')});
-  rzp.open()}
+    modal:{ondismiss:()=>{if(settled)return;reset();
+      if(Date.now()-openedAt<3500)err('The payment window closed by itself. This happens in some browsers and apps. Try Razorpay\'s secure page instead, or choose cash on delivery.',true);
+      else err('Payment cancelled. Nothing was charged. You can try again, or switch to cash on delivery.',true)}}
+  };
+  if(redirect){opts.callback_url=o.callback_url;opts.redirect=true;save()}
+  let rzp;
+  try{rzp=new window.Razorpay(opts)}catch(e){console.error('Razorpay init',e);reset();err('The payment window could not start.',true);return}
+  rzp.on('payment.failed',r=>{const d=(r&&r.error)||{};console.warn('Razorpay payment.failed',d);err('Payment failed'+(d.description?': '+d.description:'.')+' Try another method in the payment window, or close it and choose cash on delivery.')});
+  openedAt=Date.now();
+  try{rzp.open()}catch(e){console.error('Razorpay open',e);reset();err('The payment window could not open.',true)}
+  if(redirect){const p=$('#oPlace');if(p)p.textContent='Opening Razorpay…'}}
 function bindOrder(){const b=$('#b-order');
   b.querySelectorAll('[data-size]').forEach(x=>x.onclick=()=>{order.size=x.dataset.size;order.sizeSet=true;b.innerHTML=orderHTML();bindOrder()});
   b.querySelectorAll('[data-pay]').forEach(x=>x.onclick=()=>{order.pay=x.dataset.pay;b.querySelectorAll('[data-pay]').forEach(y=>y.setAttribute('aria-pressed',y===x));const p=$('#oPlace');if(p)p.textContent=placeLabel();const t=$('#oTotLbl');if(t)t.textContent=order.pay==='cod'?'Total, pay on delivery':'Total, pay now';const e=$('#oErr');if(e)e.textContent=''});

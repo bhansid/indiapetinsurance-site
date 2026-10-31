@@ -137,6 +137,7 @@ function migrations(): array {
         'ALTER TABLE orders ADD COLUMN rzp_payment_id VARCHAR(40) NULL',
         'ALTER TABLE orders ADD COLUMN paid_at DATETIME NULL',
         'ALTER TABLE orders ADD COLUMN rzp_mode VARCHAR(5) NULL',
+        'ALTER TABLE orders ADD COLUMN rzp_key_id VARCHAR(40) NULL',
         'CREATE INDEX idx_orders_rzp ON orders (rzp_order_id)',
     ];
 }

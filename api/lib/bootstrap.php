@@ -59,7 +59,7 @@ function db(): PDO {
         $pdo->exec("SET time_zone = '+05:30'");
     }
     // One-time upgrades after a deploy (marker file lives next to the uploads, outside the web root)
-    $marker = upload_dir() . '/.schema-v3';
+    $marker = upload_dir() . '/.schema-v4';
     if (!is_file($marker)) {
         require_once __DIR__ . '/schema.php';
         run_migrations($pdo);

@@ -56,16 +56,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=12">
+<link rel="stylesheet" href="/assets/style.css?v=13">
 </head>
 <?php
 $paw = '<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg>';
 $legal = '<div class="wrap"><div class="legalbar"><span>© 2026 Scram Technologies Pvt. Ltd.</span><nav aria-label="Legal"><a href="/privacy-policy/">Privacy Policy</a><a href="/terms/">Terms of Use</a><a href="/refund-policy/">Returns &amp; Refunds</a><a href="mailto:support@indiapetinsurance.com">support@indiapetinsurance.com</a></nav></div></div>';
+// Result of a Razorpay payment made on Razorpay's own page (redirect mode)
+$payBanner = '';
+$pay = (string)($_GET['pay'] ?? '');
+if ($pay === 'success') {
+    $payBanner = '<div class="done-msg" style="margin-bottom:16px">✓ Payment received' . (!empty($_GET['order']) ? ' for order ' . e($_GET['order']) : '') . '. ' . (!empty($_GET['pid']) ? 'Payment ID ' . e($_GET['pid']) . '. ' : '') . 'We\'ll confirm dispatch on WhatsApp.</div>';
+} elseif ($pay === 'failed') {
+    $payBanner = '<div class="note" style="background:var(--red-soft);color:#8F1D23;margin-bottom:16px">Payment not completed' . (!empty($_GET['order']) ? ' for order ' . e($_GET['order']) : '') . ': ' . e(mb_substr((string)($_GET['msg'] ?? ''), 0, 160)) . ' Nothing extra was charged. You can order the safety kit again below and pay online or on delivery.</div>';
+}
 if (!$me): ?>
 <body style="padding-bottom:0">
 <nav class="top" aria-label="Main"><div class="wrap"><a class="logo" href="/"><span class="mk"><?= $paw ?></span><span>IndiaPetInsurance<small>.com</small></span></a><a class="btn btn-blue btn-sm" href="/#make-id">Get free ID</a></div></nav>
 <main class="wrap acct-login">
   <div class="acct-card">
+    <?= $payBanner ?>
     <span class="eyebrow">Owner account</span>
     <h1>Log in</h1>
     <p class="lede" style="font-size:1rem">Download your dog or cat's ID card, order the safety kit, get insurance quotes and manage what the QR tag shows.</p>
@@ -99,6 +108,7 @@ if (!$me): ?>
 </div></nav>
 <main class="wrap acct">
   <?php if ($msg): ?><div class="done-msg" style="margin-bottom:16px">✓ <?= e($msg) ?></div><?php endif; ?>
+  <?= $payBanner ?>
   <?php if ($err): ?><div class="note" style="background:var(--red-soft);color:#8F1D23;margin-bottom:16px"><?= e($err) ?></div><?php endif; ?>
   <div class="acct-head">
     <div><span class="eyebrow">My account</span><h1>Hi <?= e($first) ?></h1><p class="lede">Your family's IDs, records, orders and insurance quotes, all in one place.</p></div>
@@ -171,7 +181,7 @@ if (!$me): ?>
   if ($a !== false && $b !== false) echo substr($home, $a, $b - $a);
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
-<script src="/assets/app.js?v=12" defer></script>
+<script src="/assets/app.js?v=13" defer></script>
 </body>
 <?php endif; ?>
 </html>

@@ -32,7 +32,8 @@ $currency = 'INR';
 // Reuse the Razorpay order if one already exists for this order (retry after a cancel or failure)
 $mode = rzp_mode();
 $rzpOrderId = (string)($o['rzp_order_id'] ?? '');
-if ($rzpOrderId !== '' && ($o['rzp_mode'] ?? '') !== $mode) $rzpOrderId = '';   // keys switched test↔live since the last attempt
+// Make a new Razorpay order if the keys changed since the last attempt (test↔live, or a different key pair)
+if ($rzpOrderId !== '' && (($o['rzp_mode'] ?? '') !== $mode || ($o['rzp_key_id'] ?? '') !== rzp_key_id())) $rzpOrderId = '';
 if ($rzpOrderId === '') {
     [$status, $res] = rzp_api('POST', '/v1/orders', [
         'amount' => $amount,
@@ -46,7 +47,8 @@ if ($rzpOrderId === '') {
         fail('Could not start the payment. Please try again, or choose cash on delivery.', 500, ['code' => 'gateway_error']);
     }
     $rzpOrderId = (string)$res['id'];
-    db()->prepare('UPDATE orders SET rzp_order_id = ?, rzp_mode = ?, updated_at = ? WHERE id = ?')->execute([$rzpOrderId, $mode, now(), $o['id']]);
+    db()->prepare('UPDATE orders SET rzp_order_id = ?, rzp_mode = ?, rzp_key_id = ?, updated_at = ? WHERE id = ?')->execute([$rzpOrderId, $mode, rzp_key_id(), now(), $o['id']]);
+    log_activity((int)$u['id'], 'rzp_order_created', $o['order_no'] . ' ' . $rzpOrderId . ' ' . $mode);
 }
 
 json_out([
@@ -59,5 +61,6 @@ json_out([
     'order_no' => $o['order_no'],
     'name' => 'IndiaPetInsurance.com',
     'description' => 'Safety kit for ' . $o['pet'] . ' (collar ' . substr((string)$o['product'], 4) . ')',
+    'callback_url' => site_url('api/payment-callback'),   // used only in redirect mode (in-app browsers)
     'prefill' => ['name' => $o['ship_name'], 'contact' => '+91' . $o['ship_mobile'], 'email' => (string)($u['email'] ?? '')],
 ]);

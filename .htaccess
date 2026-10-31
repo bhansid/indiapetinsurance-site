@@ -22,7 +22,7 @@ DirectoryIndex index.html index.php
   RewriteRule (^|/)ipi-payments\.json$ - [F,L]
 
   # Razorpay endpoints: /api/create-order, /api/verify-payment, /api/razorpay-webhook
-  RewriteRule ^api/(create-order|verify-payment|razorpay-webhook)/?$ api/$1.php [L,QSA]
+  RewriteRule ^api/(create-order|verify-payment|razorpay-webhook|payment-callback)/?$ api/$1.php [L,QSA]
 
   # Public "found pet" pages: /p/IPI-JK-26-123456
   RewriteRule ^p/([A-Za-z0-9-]+)/?$ p.php?id=$1 [L,QSA]
