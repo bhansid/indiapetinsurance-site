@@ -194,13 +194,25 @@ $$('[data-start]').forEach(b=>b.addEventListener('click',()=>open(b.dataset.star
 async function showPet(idNo,act){try{const j=await api('mypet.php?id='+encodeURIComponent(idNo));S={...blank(),...j.data,idNo:j.id_no,saved:true,cTerms:true,createdAt:j.created_at};resetFlow();MEM.photo=j.photo||'';goal=act==='quote'?'insure':'';view='result';wiz.hidden=false;document.body.classList.add('wiz-open');render();if(act==='kit')setTimeout(()=>jump('order'),450)}catch(e){toast(e.error||'Could not open this ID. Please try again.')}}
 $$('[data-pet]').forEach(b=>b.addEventListener('click',()=>showPet(b.dataset.pet,b.dataset.act)));
 $('#wzClose').onclick=close;
-/* Phones: when typing, shrink the card to a slim strip and keep the field in view above the keyboard */
+/* Phones: hide the bottom buttons while the keyboard is open and keep the field being typed in view */
 const isPhone=()=>innerWidth<=900;
-function keepVisible(el){if(!el)return;setTimeout(()=>{try{el.scrollIntoView({block:'center',behavior:'smooth'})}catch(_){el.scrollIntoView()}},280)}
+function keepVisible(el){if(!el)return;setTimeout(()=>{try{el.scrollIntoView({block:'center',behavior:'smooth'})}catch(_){el.scrollIntoView()}},250)}
+const typingField=()=>{const a=document.activeElement;return a&&wiz&&wiz.contains(a)&&a.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea')?a:null};
+let vvBase=0,vvW=0;
+function kbUpdate(){
+  if(!wiz||wiz.hidden||!isPhone()){document.body.classList.remove('kb');return}
+  const vv=window.visualViewport;
+  let open;
+  if(vv){if(vv.width!==vvW){vvW=vv.width;vvBase=0}vvBase=Math.max(vvBase,vv.height);open=vvBase-vv.height>140&&!!typingField()}
+  else open=!!typingField();               // older browsers: assume the keyboard is open while a field has focus
+  document.body.classList.toggle('kb',open);
+}
 if(wiz){
-  wiz.addEventListener('focusin',e=>{const t=e.target;if(isPhone()&&t.matches&&t.matches('input:not([type=checkbox]):not([type=file]),select,textarea')){document.body.classList.add('kb');keepVisible(t)}});
-  wiz.addEventListener('focusout',()=>{setTimeout(()=>{const a=document.activeElement;if(!a||!wiz.contains(a)||!a.matches('input,select,textarea'))document.body.classList.remove('kb')},120)});
-  if(window.visualViewport){const vv=window.visualViewport;const fit=()=>{if(wiz.hidden)return;if(isPhone()){wiz.style.height=vv.height+'px';wiz.style.top=vv.offsetTop+'px';const a=document.activeElement;if(a&&wiz.contains(a)&&a.matches('input,select,textarea'))keepVisible(a)}else{wiz.style.height='';wiz.style.top=''}};vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit)}
+  wiz.addEventListener('focusin',e=>{if(isPhone()&&typingField()){kbUpdate();keepVisible(e.target);setTimeout(kbUpdate,350)}});
+  wiz.addEventListener('pointerdown',()=>{if(window.visualViewport&&!typingField())vvBase=Math.max(vvBase,window.visualViewport.height)},{capture:true});
+  wiz.addEventListener('focusout',()=>setTimeout(kbUpdate,150));
+  if(window.visualViewport){const vv=window.visualViewport;const fit=()=>{if(wiz.hidden)return;if(isPhone()){wiz.style.height=vv.height+'px';wiz.style.top=vv.offsetTop+'px';const t=typingField();if(t)keepVisible(t)}else{wiz.style.height='';wiz.style.top=''}kbUpdate()};vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit)}
+  addEventListener('orientationchange',()=>{vvBase=0;setTimeout(kbUpdate,400)});
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!wiz.hidden)close()});
 $('#wzFlipBtn').onclick=()=>$('#wzFlip').classList.toggle('flipped');
@@ -308,7 +320,8 @@ function updateCard(){
 function render(anim=true){
   if(view==='result'){renderResult();return}
   $('#wzBody').style.gridTemplateColumns='';$('#wzBody').style.gridTemplateRows='';$('#wzSide').hidden=false;$('#wzFoot').hidden=false;Q.removeAttribute('style');
-  const id=STEPS[step];Q.className='wz-q'+(anim?' anim':'');Q.innerHTML=VIEWS[id]();
+  const id=STEPS[step];wiz.dataset.step=id;Q.className='wz-q'+(anim?' anim':'');Q.innerHTML=VIEWS[id]();
+  const bt=$('#wzBackTop');if(bt)bt.hidden=step===0;
   $('#wzBack').style.visibility=step===0?'hidden':'visible';
   $('#wzNext').textContent=id==='review'?(S.entry==='insurance'?`Continue to ${S.name?S.name+"'s":'your'} quote →`:`Create ${S.name||'the'} ID ✨`):(['photo','papers','records','kyc'].includes(id)&&!hasInput(id)?'Skip for now':'Continue');
   bind();updateCard();
@@ -331,6 +344,9 @@ function bind(){
   const dc=$('#f_docs');if(dc)dc.addEventListener('change',()=>{MEM.docs.push(...[...dc.files].map(f=>({name:f.name,file:f})));if(!S.records)S.records='yes';render(false)});
   const ky=$('#f_kyc');if(ky)ky.addEventListener('change',()=>{MEM.kycFiles.push(...[...ky.files].map(f=>({name:f.name,file:f})));render(false)});
   Q.querySelectorAll('.drop').forEach(d=>{['dragover','dragenter'].forEach(e=>d.addEventListener(e,()=>d.classList.add('over')));['dragleave','drop'].forEach(e=>d.addEventListener(e,()=>d.classList.remove('over')))});
+  // Check each field when the person leaves it; show the message right under that field
+  Q.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('blur',()=>{const k=el.dataset.k;if(!String(S[k]||'').trim())return;const e=validate(STEPS[step]);if(!e[k])return;errs[k]=e[k];el.classList.add('err');const f=el.closest('.fld');if(!f)return;let m=f.querySelector('.errm');if(!m){const h=f.querySelector('.hint');m=document.createElement('span');m.className='errm';h?h.replaceWith(m):f.appendChild(m)}m.textContent=e[k]}));
+  Q.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>{const f=el.closest('.fld');const m=f&&f.querySelector('.errm');if(m&&!errs[el.dataset.k])m.remove()}));
   // Keyboard "Next" moves to the next field; on the last field it continues to the next step
   const fields=[...Q.querySelectorAll('input.inp:not([type=file]),select.inp')].filter(x=>!x.disabled);
   fields.forEach((f,i)=>{f.setAttribute('enterkeyhint',i<fields.length-1?'next':'go');f.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const n=fields[i+1];if(n){n.focus();if(n.tagName==='SELECT'&&n.showPicker){try{n.showPicker()}catch(_){}}}else next()}})});
@@ -339,7 +355,9 @@ function refreshNext(){const id=STEPS[step];if(['photo','papers','records','kyc'
 function readImg(file,cb){if(!file)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas'),s=Math.min(1,640/Math.max(img.width,img.height));c.width=img.width*s;c.height=img.height*s;c.getContext('2d').drawImage(img,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.85))};img.src=r.result};r.readAsDataURL(file)}
 function next(){const id=STEPS[step];errs=validate(id);if(Object.keys(errs).length){render(false);const f=Q.querySelector('.err,.errm');f&&f.scrollIntoView({block:'center',behavior:'smooth'});return}
   if(id==='review'){createID();return}step++;render();$('#wzPane').scrollTop=0}
-$('#wzNext').onclick=next;$('#wzBack').onclick=()=>{if(step>0){step--;errs={};render();$('#wzPane').scrollTop=0}};
+$('#wzNext').onclick=next;
+const goBack=()=>{if(step>0){step--;errs={};render();$('#wzPane').scrollTop=0}};
+$('#wzBack').onclick=goBack;{const bt=$('#wzBackTop');if(bt)bt.onclick=goBack}
 
 /* ================= RESULT ================= */
 let orderStep='', insStep='', order={prod:'kit',size:'M',pay:'online'}, ins={plan:'complete',si:'50000',ill:'',pre:''};
@@ -404,6 +422,7 @@ function kitInfoHTML(nm){return `<ul class="kit-list">
    <li><i>🪪</i><span><b>1 PVC ID card</b>Wallet size, with all of ${nm}'s details and QR.</span></li>
    <li><i>💧</i><span><b>1 one-press travel water bottle</b>Press the button and water fills the built-in cup, so ${nm} can drink anywhere. One hand, no mess.</span></li></ul>`}
 function renderResult(){
+  wiz.dataset.step='result';{const bt=$('#wzBackTop');if(bt)bt.hidden=true}
   $('#wzSide').hidden=true;$('#wzFoot').hidden=true;$('#wzBody').style.gridTemplateColumns='1fr';$('#wzBody').style.gridTemplateRows='1fr';
   updateCard();
   if(!order.sizeSet){order.size=S.species==='cat'?'S':(/Shih|Pug|Pomeranian|Chihuahua|Maltese|Yorkshire|Papillon|Pekingese|Toy|Miniature|Lhasa|Bichon/i.test(S.breed)?'S':/Great Dane|Mastiff|Saint Bernard|Newfoundland|Shepherd|Rottweiler|Doberman|Cane Corso|Bully Kutta|Gaddi|Bakharwal|Leonberger|Malamute/i.test(S.breed)?'L':'M')}

@@ -321,27 +321,35 @@ body.wiz-open #duo,body.wiz-open #lane{visibility:hidden}
 .wz-side .cardbox{width:min(460px,100%);display:grid;gap:14px;justify-items:center}
 .wz-side .meter{display:flex;gap:10px;align-items:center;font-weight:700;color:var(--ink-2);font-size:.92rem}
 .wz-side .meter b{color:var(--blue)}
+/* ---- Phone form: thin progress bar on top, no live card until Review, CTA hidden while typing ---- */
+.wz-backtop{display:none}
 @media (max-width:900px){
-  .wz-side{padding:10px 12px;border-bottom:1px solid var(--line);order:-1;transition:padding .2s}
-  .wz-side .cardbox{width:min(440px,100%);gap:4px;transition:width .2s}
-  .wz-side .meter{font-size:.76rem}
-  .wz-side .fliphint{display:none}
-  /* compact top bar: thin progress line, no logo */
-  .wz-top{padding:8px 12px;gap:10px}
+  .wz-top{position:relative;padding:10px 10px 8px;gap:8px;border-bottom:1px solid var(--line)}
   .wz-top .logo{display:none}
-  .wz-prog{gap:3px}
-  .wz-prog .bar{height:4px}
-  .wz-prog small{font-size:.72rem}
-  .xbtn{width:34px;height:34px}
-  .wz-foot .in #wzNext{flex:1}
-  /* typing: card becomes a slim strip so the field stays visible */
-  body.kb .wz-side{padding:6px 12px}
-  body.kb .wz-side .cardbox{grid-template-columns:118px 1fr;align-items:center;justify-items:start;gap:12px;width:100%}
-  body.kb .wz-side .meter{font-size:.8rem}
-  body.kb .wz-q{padding-top:16px;gap:16px}
-  body.kb .wz-q h2{font-size:1.35rem}
+  .wz-backtop{display:grid;border:0;background:none;width:40px;height:40px}
+  .wz-backtop[hidden]{display:none!important}
+  .wz-prog{gap:0}
+  .wz-prog .bar{position:absolute;left:0;right:0;top:0;height:4px;border-radius:0;background:var(--tint-2)}
+  .wz-prog .bar i{border-radius:0 4px 4px 0}
+  .wz-prog small{font-size:.86rem;color:var(--ink-2)}
+  .xbtn{width:40px;height:40px;border:0}
+  /* the live ID card shows only on the Review step on phones */
+  #wiz:not([data-step="review"]) .wz-side{display:none}
+  #wiz:not([data-step="review"]) .wz-body{grid-template-rows:minmax(0,1fr)}
+  .wz-side{padding:14px 16px 8px;border-bottom:0;order:-1}
+  .wz-side .cardbox{width:min(420px,100%);gap:6px}
+  .wz-side .meter,.wz-side .fliphint{display:none}
+  .wz-q{padding-top:22px;gap:18px}
+  .wz-q h2{font-size:1.6rem}
+  .wz-q .qn{display:none}
+  .wz-foot .in #wzBack{display:none}
+  .wz-foot .in #wzNext{flex:1;padding:16px;font-size:1.05rem}
+  /* keyboard open: hide the bottom buttons; the keyboard's Next / Go moves on */
+  body.kb .wz-foot{display:none}
+  body.kb .wz-q{padding-top:14px;padding-bottom:40vh}
+  .inp{font-size:16px}
+  .inp.big{font-size:1.3rem}
 }
-@media (max-width:900px) and (max-height:640px){.wz-side .cardbox{width:min(300px,80vw)}}
 .fliphint{font-size:.82rem;color:var(--muted);font-weight:600;background:none;border:0;cursor:pointer;text-decoration:underline}
 
 /* form controls */
