@@ -253,7 +253,7 @@ function pager(int $total, int $per, int $pg, string $qs): void {
     if ($pg < $pages) echo '<a class="btn ghost sm" href="/admin/?' . e($qs) . '&page=' . ($pg + 1) . '">Next →</a>';
     echo '</div>';
 }
-function notif_icon(string $t): string { return ['pet_created' => '🪪', 'owner_signup' => '👤', 'order_new' => '📦', 'quote_new' => '🛡️', 'scan' => '📍'][$t] ?? '🔔'; }
+function notif_icon(string $t): string { return ['pet_created' => '🪪', 'owner_signup' => '👤', 'order_new' => '📦', 'quote_new' => '🛡️', 'scan' => '📍', 'payment_test' => '💳', 'order_paid' => '💰'][$t] ?? '🔔'; }
 function notif_link(array $n): string {
     if ($n['ref_table'] === 'pets') return '/admin/?p=pet&id=' . (int)$n['ref_id'];
     if ($n['ref_table'] === 'orders') return '/admin/?p=orders';
@@ -488,6 +488,60 @@ case 'payments':
     </form>
     <div class="card" style="margin-top:16px"><h2>Check the keys</h2><p class="muted small">Asks Razorpay whether the saved keys are valid. No money moves.</p>
       <div class="inline"><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="a" value="pay_test"><button class="btn ghost sm" name="which" value="test">Test the test keys</button><button class="btn ghost sm" name="which" value="live">Test the live keys</button></form></div></div>
+    <div class="card" id="t1"><div class="head" style="margin-bottom:6px"><h2>₹1 test payment</h2><span class="pill <?= $mode === 'live' ? 'ok' : 'warn' ?>"><?= $mode === 'live' ? 'LIVE · real ₹1' : 'TEST · fake money' ?></span></div>
+      <p class="muted small">Runs one payment of ₹1 through the same Razorpay checkout, signature check and webhook as kit orders, using the <b><?= strtoupper($mode) ?></b> keys. It does not create a kit order. Refund it with one click when done.</p>
+      <?php if (rzp_configured()): ?>
+      <button class="btn" type="button" id="t1go">Pay ₹1 now</button>
+      <ol class="t1steps" id="t1steps" hidden>
+        <li data-k="order">Order created at Razorpay</li>
+        <li data-k="paid">Payment completed in checkout</li>
+        <li data-k="sig">Signature verified with your key secret</li>
+        <li data-k="cap">Payment captured (money will settle)</li>
+        <li data-k="hook">Webhook received from Razorpay</li>
+      </ol>
+      <p class="small" id="t1msg"></p>
+      <button class="btn ghost sm" type="button" id="t1refund" hidden>Refund the ₹1</button>
+      <?php else: ?><p class="small">Add the <?= $mode ?> keys above first.</p><?php endif; ?>
+    </div>
+    <style>.t1steps{margin:14px 0 6px;padding-left:0;list-style:none;display:grid;gap:6px}.t1steps li{padding-left:28px;position:relative;color:var(--muted,#667)}.t1steps li::before{content:"○";position:absolute;left:4px;font-weight:800}.t1steps li.ok{color:inherit}.t1steps li.ok::before{content:"✓";color:#16a34a}.t1steps li.bad{color:#b91c1c}.t1steps li.bad::before{content:"✕";color:#b91c1c}.t1steps li.wait::before{content:"…";color:#d97706}.t1steps small{display:block;color:var(--muted,#667);font-weight:400}</style>
+    <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+    <script>
+    (()=>{const go=document.getElementById('t1go');if(!go)return;
+      const csrf=<?= json_encode(csrf_token()) ?>,steps=document.getElementById('t1steps'),msg=document.getElementById('t1msg'),rf=document.getElementById('t1refund');
+      let cur={};
+      const api=a=>fetch('/admin/test-payment.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},body:JSON.stringify(Object.assign({csrf},a))}).then(r=>r.json().catch(()=>({ok:false,error:'Server error (HTTP '+r.status+')'})));
+      const set=(k,cls,note)=>{const li=steps.querySelector('[data-k="'+k+'"]');li.className=cls;let s=li.querySelector('small');if(note){if(!s){s=document.createElement('small');li.appendChild(s)}s.textContent=note}else if(s)s.remove()};
+      const say=(t,bad)=>{msg.textContent=t;msg.style.color=bad?'#b91c1c':''};
+      function report(r){
+        if(r.status==='captured'||r.status==='refunded')set('cap','ok',(r.method||'')+' · ₹'+(r.amount/100)+(r.status==='refunded'?' · refunded':''));
+        else if(r.status==='authorized')set('cap','bad','Status is "authorized", not captured. Turn on automatic capture in Razorpay → Account & Settings → Payment capture, or real orders will not settle.');
+        else set('cap','wait','Status: '+(r.status||'unknown'));
+        if(r.webhook_at)set('hook','ok','Arrived '+r.webhook_at);
+        else if(!r.webhook_set)set('hook','bad','No webhook secret saved above. Add the webhook in Razorpay ('+<?= json_encode(strtoupper($mode)) ?>+' mode) and paste its secret here.');
+        else set('hook','wait','Waiting for Razorpay…');
+        rf.hidden=!(r.status==='captured'&&!r.amount_refunded);
+      }
+      function poll(n){api({a:'status',order_id:cur.o,payment_id:cur.p}).then(r=>{if(!r.ok)return;report(r);if(!r.webhook_at&&r.webhook_set&&n>0)setTimeout(()=>poll(n-1),3000);else if(!r.webhook_at&&r.webhook_set)set('hook','bad','Nothing after 45 seconds. Check the webhook URL, events (payment.captured, order.paid), that it is set up in '+<?= json_encode(strtoupper($mode)) ?>+' mode, and that the secret matches.')})}
+      go.onclick=()=>{
+        if(!window.Razorpay){say('Razorpay checkout did not load. Check your connection or an ad blocker, then reload.',1);return}
+        go.disabled=true;steps.hidden=false;rf.hidden=true;steps.querySelectorAll('li').forEach(li=>{li.className='';const s=li.querySelector('small');if(s)s.remove()});say('');
+        api({a:'create'}).then(r=>{
+          if(!r.ok){set('order','bad',r.error);go.disabled=false;return}
+          set('order','ok',r.order_id+' · '+r.mode.toUpperCase());cur={o:r.order_id};set('paid','wait');
+          const rz=new Razorpay({key:r.key_id,order_id:r.order_id,amount:r.amount,currency:r.currency,name:'IndiaPetInsurance.com',description:'₹1 test payment (admin)',prefill:r.prefill,notes:{purpose:'admin_test'},theme:{color:'#2457F5'},
+            handler:res=>{set('paid','ok',res.razorpay_payment_id);cur.p=res.razorpay_payment_id;set('sig','wait');
+              api({a:'verify',order_id:res.razorpay_order_id,payment_id:res.razorpay_payment_id,signature:res.razorpay_signature}).then(v=>{
+                go.disabled=false;go.textContent='Run another ₹1 test';
+                if(!v.signature){set('sig','bad',v.error||'Failed');say('Payment went through but verification failed. Check the key secret above, then refund this payment from the Razorpay dashboard.',1);return}
+                set('sig','ok');if(v.ok){report(v);poll(15)}else say(v.error,1)})},
+            modal:{ondismiss:()=>{if(!cur.p){set('paid','bad','Checkout closed before paying');go.disabled=false}}}});
+          rz.on('payment.failed',e=>{set('paid','bad',(e.error&&e.error.description)||'Payment failed');});
+          rz.open();
+        }).catch(()=>{set('order','bad','Could not reach the server');go.disabled=false});
+      };
+      rf.onclick=()=>{rf.disabled=true;api({a:'refund',payment_id:cur.p}).then(r=>{rf.disabled=false;if(r.ok){rf.hidden=true;say(r.already?'Already refunded.':'Refund started ('+r.refund_id+'). Razorpay returns it to the payer in about 5–7 working days.')}else say(r.error,1)})};
+    })();
+    </script>
     <div class="card"><h2>Webhook (recommended before going live)</h2><p class="small">So payments are recorded even if a buyer closes the page right after paying. In Razorpay Dashboard → Webhooks, add:</p>
       <p><code><?= e(site_url('api/razorpay-webhook')) ?></code></p><p class="small">Events: <b>payment.captured</b> and <b>order.paid</b>. Set a secret there, then paste the same secret above.</p></div>
     <?php break;

@@ -17,6 +17,9 @@ if (!rzp_webhook_signature_ok($raw, (string)($_SERVER['HTTP_X_RAZORPAY_SIGNATURE
 $evt = json_decode($raw, true) ?: [];
 $pay = $evt['payload']['payment']['entity'] ?? [];
 if (in_array($evt['event'] ?? '', ['payment.captured', 'order.paid'], true) && !empty($pay['order_id']) && !empty($pay['id'])) {
-    mark_order_paid((string)$pay['order_id'], (string)$pay['id'], 'webhook');
+    $o = mark_order_paid((string)$pay['order_id'], (string)$pay['id'], 'webhook');
+    // ₹1 test payment from Admin → Payments: just record that the webhook arrived
+    $purpose = (string)($pay['notes']['purpose'] ?? ($evt['payload']['order']['entity']['notes']['purpose'] ?? ''));
+    if (!$o && $purpose === 'admin_test') log_activity(null, 'rzp_webhook_test', $evt['event'] . ' ' . $pay['order_id'] . ' ' . $pay['id']);
 }
 json_out(['ok' => true]);
