@@ -25,7 +25,7 @@ if ($p) {
     }
     $d = json_decode($p['data'], true) ?: [];
     $hasPhoto = (bool)db()->query('SELECT 1 FROM documents WHERE pet_id = ' . (int)$p['id'] . " AND kind = 'photo' LIMIT 1")->fetchColumn();
-    $area = $p['pub_addr'] === 'exact' ? implode(', ', array_filter([$d['oHouse'] ?? '', $d['oLocality'] ?? '', $d['oCity'] ?? ''])) : implode(', ', array_filter([$d['oLocality'] ?? '', $d['oCity'] ?? '']));
+    $area = $p['pub_addr'] === 'hidden' ? '' : ($p['pub_addr'] === 'exact' ? implode(', ', array_filter([$d['oHouse'] ?? '', $d['oLocality'] ?? '', $d['oCity'] ?? ''])) : implode(', ', array_filter([$d['oLocality'] ?? '', $d['oCity'] ?? ''])));
     $first = explode(' ', (string)$p['owner_name'])[0];
 }
 http_response_code($p ? 200 : 404);

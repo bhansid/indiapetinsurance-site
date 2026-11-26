@@ -4,16 +4,13 @@ declare(strict_types=1);
 require __DIR__ . '/lib/bootstrap.php';
 require_installed_api();
 require_ajax_post();
-$u = current_user();
-if (!$u) fail('Please log in first.', 401, ['code' => 'login_required']);
 if (rate_limited('quote', 20, 3600)) fail('Too many requests. Please try again later.', 429);
 
 $d = json_decode((string)($_POST['data'] ?? ''), true);
 if (!is_array($d)) fail('Missing form data.');
-$st = db()->prepare('SELECT id, name, breed FROM pets WHERE id_no = ? AND owner_id = ?');
-$st->execute([str_field($d, 'id_no', 32), $u['id']]);
-$pet = $st->fetch();
-if (!$pet) fail('ID not found on your account.', 404);
+$pet = pet_for_request(str_field($d, 'id_no', 32));
+if (!$pet) fail('We could not find this ID on this device. Please create it again.', 404, ['code' => 'pet_access']);
+$u = ['id' => (int)$pet['owner_id']];
 
 $plan = in_array($d['plan'] ?? '', ['essential', 'complete'], true) ? $d['plan'] : '';
 $si = (int)($d['si'] ?? 0);

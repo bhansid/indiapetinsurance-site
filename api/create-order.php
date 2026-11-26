@@ -1,7 +1,7 @@
 <?php
 /**
  * POST /api/create-order
- * Creates a Razorpay order for one of the logged-in owner's unpaid online orders.
+ * Creates a Razorpay order for an unpaid online kit order of an ID the visitor holds (login or X-Pet-Key).
  * Body: {order_no}. The amount always comes from our database, never from the browser.
  * Returns: {ok, order_id, amount, currency, key_id, ...checkout options}
  */
@@ -10,18 +10,16 @@ require __DIR__ . '/lib/bootstrap.php';
 require __DIR__ . '/lib/razorpay.php';
 require_installed_api();
 require_ajax_post();
-$u = current_user();
-if (!$u) fail('Please log in first.', 401, ['code' => 'login_required']);
 if (rate_limited('rzp_create', 30, 3600)) fail('Too many payment attempts. Please try again later.', 429);
 if (!rzp_configured()) { error_log('razorpay: keys missing'); fail('Online payment is not available right now. Please choose cash on delivery.', 500, ['code' => 'payments_not_configured']); }
 
 $d = body_json();
 $orderNo = str_field($d, 'order_no', 20);
 if ($orderNo === '') fail('Missing order number.', 400);
-$st = db()->prepare('SELECT o.*, p.name AS pet, p.id_no FROM orders o JOIN pets p ON p.id = o.pet_id WHERE o.order_no = ? AND o.owner_id = ?');
-$st->execute([$orderNo, $u['id']]);
+$st = db()->prepare('SELECT o.*, p.name AS pet, p.id_no, u.email AS owner_email FROM orders o JOIN pets p ON p.id = o.pet_id LEFT JOIN users u ON u.id = o.owner_id WHERE o.order_no = ?');
+$st->execute([$orderNo]);
 $o = $st->fetch();
-if (!$o) fail('Order not found.', 404);
+if (!$o || !pet_for_request((string)$o['id_no'])) fail('Order not found.', 404);
 if ($o['payment_status'] === 'paid') fail('This order is already paid.', 409, ['code' => 'already_paid', 'order_no' => $o['order_no']]);
 if ($o['payment_method'] !== 'online') fail('This order is set to cash on delivery.', 400);
 
@@ -48,7 +46,7 @@ if ($rzpOrderId === '') {
     }
     $rzpOrderId = (string)$res['id'];
     db()->prepare('UPDATE orders SET rzp_order_id = ?, rzp_mode = ?, rzp_key_id = ?, updated_at = ? WHERE id = ?')->execute([$rzpOrderId, $mode, rzp_key_id(), now(), $o['id']]);
-    log_activity((int)$u['id'], 'rzp_order_created', $o['order_no'] . ' ' . $rzpOrderId . ' ' . $mode);
+    log_activity((int)$o['owner_id'], 'rzp_order_created', $o['order_no'] . ' ' . $rzpOrderId . ' ' . $mode);
 }
 
 json_out([
@@ -62,5 +60,5 @@ json_out([
     'name' => 'IndiaPetInsurance.com',
     'description' => 'Safety kit for ' . $o['pet'] . ' (collar ' . substr((string)$o['product'], 4) . ')',
     'callback_url' => site_url('api/payment-callback'),   // used only in redirect mode (in-app browsers)
-    'prefill' => ['name' => $o['ship_name'], 'contact' => '+91' . $o['ship_mobile'], 'email' => (string)($u['email'] ?? '')],
+    'prefill' => ['name' => $o['ship_name'], 'contact' => '+91' . $o['ship_mobile'], 'email' => (string)($o['owner_email'] ?? '')],
 ]);

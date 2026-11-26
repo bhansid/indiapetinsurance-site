@@ -662,3 +662,28 @@ body[data-page="account"] .legalbar{margin-bottom:24px}
 @media (max-width:640px){.pm{padding:0;place-items:end stretch}.pm-sheet{border-radius:24px 24px 0 0;max-height:92vh;max-height:92dvh;width:100%}.pm-head,.pm-body,.pm-foot{padding-left:16px;padding-right:16px}.pm-foot .btn{width:auto}.pm-foot .btn-blue{max-width:none}}
 .paychoice{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media (max-width:520px){.paychoice{grid-template-columns:1fr}}
+
+/* ---------- 7-step form (v15) ---------- */
+.spc-seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 18px}
+.spc-seg .choice{display:flex;align-items:center;gap:10px;padding:8px 14px;font-size:1.05rem;font-weight:800;justify-content:flex-start}
+.spc-seg .choice svg{width:52px;height:52px;flex:none}
+.pview{display:grid;grid-template-columns:minmax(120px,200px) 1fr;gap:18px;align-items:start}
+.pimg{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:1;background:var(--tint-2)}
+.pimg img{width:100%;height:100%;object-fit:cover;display:block}
+.pimg i{position:absolute;inset:0;pointer-events:none}
+.pimg.scanning i{background:linear-gradient(180deg,transparent 0,rgba(36,87,245,.0) 40%,rgba(36,87,245,.45) 50%,rgba(36,87,245,0) 60%,transparent 100%);background-size:100% 220%;animation:pscan 1.4s linear infinite;box-shadow:inset 0 0 0 3px rgba(36,87,245,.6)}
+@keyframes pscan{from{background-position:0 100%}to{background-position:0 -100%}}
+.pmsg{display:grid;gap:6px;margin-bottom:12px;font-size:.98rem}
+.pmsg span{color:var(--ink-2);font-size:.92rem}
+.pmsg.ok b{color:var(--green,#16a34a)}
+.pmsg.bad b{color:#b91c1c}
+.pmsg.wait b::after{content:"";display:inline-block;width:12px;height:12px;margin-left:8px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-1px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pacts{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:6px}
+.linkbtn{background:none;border:0;padding:6px 2px;color:var(--blue);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+.priv{border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin:18px 0 8px;display:grid;gap:4px}
+.priv .sw{padding:8px 0}
+.wa-opt{display:grid;gap:4px;border:1px solid #bfe8cf;background:#f1fbf5;border-radius:16px;padding:8px 14px;margin:2px 0 14px}
+.wa-opt .check b{display:block}
+.wa-opt .check .hint{display:block}
+@media (max-width:560px){.pview{grid-template-columns:1fr}.pimg{max-width:240px}}

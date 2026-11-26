@@ -139,6 +139,8 @@ function migrations(): array {
         'ALTER TABLE orders ADD COLUMN rzp_mode VARCHAR(5) NULL',
         'ALTER TABLE orders ADD COLUMN rzp_key_id VARCHAR(40) NULL',
         'CREATE INDEX idx_orders_rzp ON orders (rzp_order_id)',
+        // No-password flow: each ID carries a private owner key (only its SHA-256 is stored)
+        'ALTER TABLE pets ADD COLUMN owner_key_hash VARCHAR(64) NULL',
     ];
 }
 function run_migrations(PDO $pdo): void {

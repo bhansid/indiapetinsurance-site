@@ -74,23 +74,23 @@ function qrFor(idNo){return realQR(profileURL(idNo))||qrMatrix(idNo||'x')}
 function qrSVG(idNo){const m=qrFor(idNo),n=m.length;let r='';m.forEach((row,y)=>row.forEach((v,x)=>{if(v)r+=`M${x} ${y}h1v1h-1z`}));return `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges" role="img" aria-label="QR code"><path d="${r}" fill="#0D1B3E"/></svg>`}
 
 /* ================= STATE ================= */
-const blank=()=>({species:'dog',name:'',breed:'',gender:'',neutered:'',dobMode:'dob',dob:'',ageY:'',ageM:'',weight:'',colour:'',marks:'',
+const blank=()=>({species:'dog',name:'',breed:'',gender:'',neutered:'',dobMode:'age',dob:'',ageY:'',ageM:'',weight:'',colour:'',marks:'',
   lic:'',licNo:'',licAuth:'',kci:'',kciNo:'',chip:'',chipNo:'',
   records:'',rabies:'',core:'',deworm:'',conditions:'',meds:'',
   clinicNone:false,clinic:'',clinicArea:'',doctor:'',doctorPh:'',cOwner:'',cOwnerPh:'',clinicPh:'',
   oName:'',oMobile:'',oVerified:false,oEmail:'',oHouse:'',oLocality:'',oCity:'Jammu',oState:'Jammu and Kashmir',oPin:'',eName:'',eMobile:'',
   kycType:'',kycNo:'',
-  pubPhone:true,pubAddr:'locality',pubVet:true,pubAllergy:true,
-  cTerms:false,cWa:true,cMkt:false,idNo:'',createdAt:''});
+  pubPhone:true,pubAddr:'locality',pubArea:true,pubVet:true,pubAllergy:true,photoCheck:'',petKey:'',
+  cTerms:false,cWa:false,cMkt:false,idNo:'',createdAt:''});
 let S=blank();
-const MEM={photo:'',docs:[],kycFiles:[],angles:{},pw:'',pw2:''}; // files and password stay in memory only
+const MEM={photo:'',pcheck:'',docs:[],kycFiles:[],angles:{}}; // files stay in memory only
 /* ---------- Where did this visitor come from? (saved with the ID) ---------- */
 const SRC=(()=>{try{let s=JSON.parse(sessionStorage.getItem('ipi-src')||'null');if(!s){const u=new URLSearchParams(location.search);s={landing:location.pathname,ref:document.referrer?new URL(document.referrer).hostname:''};['utm_source','utm_medium','utm_campaign','gclid','fbclid'].forEach(k=>{const v=u.get(k);if(v)s[k]=v.slice(0,60)});sessionStorage.setItem('ipi-src',JSON.stringify(s))}return s}catch(e){return {}}})();
 function srcSummary(){const s=SRC,via=s.gclid?'Google Ads':s.fbclid?'Meta Ads':s.utm_source?s.utm_source+(s.utm_medium?'/'+s.utm_medium:''):s.ref&&!s.ref.includes(location.hostname)?s.ref:'direct';return `${S.entry==='insurance'?'Insurance quote':'Free ID'} · landed on ${s.landing||'/'} · ${via}${s.utm_campaign?' · '+s.utm_campaign:''}`}
 /* ---------- Backend API ---------- */
 let ME={user:null,pets:[],api:false};
 async function api(path,body){
-  const opt={method:body?'POST':'GET',credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}};
+  const opt={method:body?'POST':'GET',credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}};if(S&&S.petKey)opt.headers['X-Pet-Key']=S.petKey;
   if(body instanceof FormData)opt.body=body;else if(body){opt.body=JSON.stringify(body);opt.headers['Content-Type']='application/json'}
   let r;try{r=await fetch('/api/'+path,opt)}catch(e){throw {offline:true}}
   let j=null;try{j=await r.json()}catch(e){}
@@ -128,7 +128,7 @@ function cardFront(d,o={}){
 function cardBack(d){
   const nm=d.name||'This pet';
   const phone=d.pubPhone&&d.oMobile?`+91 ${d.oMobile.slice(0,5)} ${d.oMobile.slice(5)}`:'Hidden by owner';
-  const addr=d.pubAddr==='exact'?[d.oHouse,d.oLocality,d.oCity].filter(Boolean).join(', '):[d.oLocality,d.oCity].filter(Boolean).join(', ');
+  const addr=d.pubAddr==='hidden'?'Hidden':d.pubAddr==='exact'?[d.oHouse,d.oLocality,d.oCity].filter(Boolean).join(', '):[d.oLocality,d.oCity].filter(Boolean).join(', ');
   const mrz=(`IPI<${(d.idNo||'').replace(/-/g,'<')}<<${(nm).toUpperCase().replace(/[^A-Z]/g,'<')}`+'<'.repeat(40)).slice(0,44);
   return `<div class="idc back"><div class="bk">
    <div class="full found">If found, please scan the QR<br>or call ${esc(d.oName?d.oName.split(' ')[0]:'my family')}.</div>
@@ -178,15 +178,15 @@ $('#vetBtn').onclick=()=>{location.href='mailto:support@indiapetinsurance.com?su
 }
 
 /* ================= WIZARD ================= */
-const STEPS=['species','name','breed','basics','photo','papers','records','clinic','owner','kyc','privacy','review'];
-const TITLES={species:'Dog or cat',name:'Name',breed:'Breed',basics:'About',photo:'Photo',papers:'Registration',records:'Health records',clinic:'Primary clinic',owner:'Your details',kyc:'ID proof',privacy:'Privacy',review:'Review'};
+const STEPS=['name','breed','basics','photo','health','owner','review'];
+const TITLES={name:'Name',breed:'Breed',basics:'About',photo:'Photo',health:'Health',owner:'Your details',review:'Review'};
 let step=0, goal='', flash='', errs={}, view='steps', otpSent=false;
 const wiz=$('#wiz'), Q=$('#wzQ');
 function firstIncomplete(){for(let i=0;i<STEPS.length;i++){if(Object.keys(validate(STEPS[i])).length)return i}return STEPS.length-1}
 function prefill(){const p=(ME&&ME.profile)||{},u=(ME&&ME.user)||{};return {oName:u.name||p.oName||'',oMobile:u.mobile||p.oMobile||'',oEmail:p.oEmail||'',oHouse:p.oHouse||'',oLocality:p.oLocality||'',oCity:p.oCity||'Jammu',oState:p.oState||'Jammu and Kashmir',oPin:p.oPin||'',eName:p.eName||'',eMobile:p.eMobile||''}}
-function resetFlow(){MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';order={prod:'kit',size:'M',pay:'online'};ins={plan:'complete',si:'50000',ill:'',pre:''};step=0}
+function resetFlow(){MEM.photo='';MEM.pcheck='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';order={prod:'kit',size:'M',pay:'online'};ins={plan:'complete',si:'50000',ill:'',pre:''};step=0}
 function open(spc,g,fresh){load();if(fresh){S={...blank(),...prefill()};resetFlow();save()}goal=g||'';errs={};if(goal==='insure'&&!S.idNo)S.entry='insurance';else if(!S.name&&!S.idNo)S.entry=S.entry||'id';
-  if(S.idNo&&S.cTerms){view='result'}else{view='steps';if(!S.name){if(spc){S.species=spc;step=1}else step=0}else step=firstIncomplete()}
+  if(S.idNo&&S.cTerms){view='result'}else{view='steps';if(!S.name){if(spc)S.species=spc;step=0}else step=firstIncomplete()}
   wiz.hidden=false;document.body.classList.add('wiz-open');render();if(innerWidth>900)setTimeout(()=>{const f=Q.querySelector('input,button');f&&f.focus({preventScroll:true})},60)}
 function close(){save();wiz.hidden=true;document.body.classList.remove('wiz-open');if(document.body.dataset.page==='account')location.reload()}
 $$('[data-start]').forEach(b=>b.addEventListener('click',()=>open(b.dataset.start,b.dataset.goal,!!b.dataset.new)));
@@ -228,10 +228,9 @@ const drop=(id,label,sub,multi,accept='image/*,.pdf')=>`<label class="drop" for=
 const filesHTML=(arr,key)=>arr.length?`<div class="files">${arr.map((f,i)=>`<span class="file">✓ <span>${esc(f.name)}</span><button type="button" data-rm="${key}" data-i="${i}" aria-label="Remove ${esc(f.name)}">×</button></span>`).join('')}</div>`:'';
 
 const VIEWS={
- species:()=>(S.entry==='insurance'?`<span class="qn">Your insurance quote</span><h2>Who are we protecting?</h2><p class="sub">Answer once. A licensed advisor sends your quote on WhatsApp, and you get a free QR ID card along the way.</p>`:`<span class="qn">Let's start</span><h2>Who's getting the ID today?</h2>`)+`
-  <div class="species">${['dog','cat'].map(s=>`<button type="button" class="choice" data-set="species" data-v="${s}" aria-pressed="${S.species===s}">${portraitSVG(s,'','sp'+s)}<span>${s==='dog'?'A dog':'A cat'}</span></button>`).join('')}</div>`,
- name:()=>`<span class="qn">Nice to meet you</span><h2>What's your ${sp()}'s name?</h2>
-  ${txt('name',sp()==='dog'?'e.g. Sheru':'e.g. Simba','text','maxlength="16" autocomplete="off"').replace('class="inp ','class="inp big ')}${errs.name?`<span class="errm">${errs.name}</span>`:''}
+ name:()=>`<span class="qn">${S.entry==='insurance'?'Your insurance quote':'Let\'s start'}</span><h2>${S.entry==='insurance'?'Who are we protecting?':'Who\'s getting the ID?'}</h2>
+  <div class="spc-seg" role="group" aria-label="Dog or cat">${['dog','cat'].map(s=>`<button type="button" class="choice" data-set="species" data-v="${s}" aria-pressed="${S.species===s}">${portraitSVG(s,'','sp'+s)}<span>${s==='dog'?'Dog':'Cat'}</span></button>`).join('')}</div>
+  <div class="fld"><label for="f_name">${sp()==='dog'?'Your dog\'s':'Your cat\'s'} name</label>${txt('name',sp()==='dog'?'e.g. Sheru':'e.g. Simba','text','maxlength="16" autocomplete="off" autocapitalize="words"').replace('class="inp ','class="inp big ')}${errs.name?`<span class="errm">${errs.name}</span>`:''}</div>
   <div class="pills">${(sp()==='dog'?['Bruno','Sheru','Moti','Rocky','Bella','Coco']:['Simba','Luna','Oreo','Tiger','Kitty','Mishti']).map(n=>`<button type="button" class="pill" data-set="name" data-v="${n}" aria-pressed="${S.name===n}">${n}</button>`).join('')}</div>`,
  breed:()=>{const list=sp()==='dog'?[['Indian breeds',INDIAN_DOGS],['All breeds',WORLD_DOGS],['Other',['Mixed breed','Not sure']]]:[['Cat breeds',CATS],['Other',['Mixed breed','Not sure']]];
   return `<span class="qn">Breed</span><h2>${esc(NM())} is a…</h2>
@@ -239,61 +238,46 @@ const VIEWS={
   <div class="fld"><label for="bq">Search ${list.reduce((a,g)=>a+g[1].length,0)} breeds</label><input class="inp ${errs.breed?'err':''}" id="bq" placeholder="Type to search, e.g. Rajapalayam" autocomplete="off">${errs.breed?`<span class="errm">${errs.breed}</span>`:''}</div>
   <div class="blist" id="blist" role="listbox" aria-label="Breeds">${list.map(([g,arr])=>`<div class="grp">${g}</div>`+arr.map(b=>`<button type="button" role="option" data-set="breed" data-v="${esc(b)}" aria-selected="${S.breed===b}">${esc(b)}${INDIAN_DOGS.includes(b)?'<small>Indian</small>':''}</button>`).join('')).join('')}</div>
   ${S.breed?`<span class="ok-tag">✓ Selected: ${esc(S.breed)}</span>`:''}`},
- basics:()=>`<span class="qn">A few basics</span><h2>Tell us about ${esc(NM())}.</h2>
+ basics:()=>`<span class="qn">About</span><h2>Tell us about ${esc(NM())}.</h2>
   <div class="fld"><span class="lb">Sex</span>${choice('gender',[['m','Male'],['f','Female']])}</div>
-  <div class="fld"><span class="lb">${S.gender==='f'?'Spayed':'Neutered / spayed'}?</span>${choice('neutered',[['yes','Yes'],['no','No'],['unsure','Not sure']])}</div>
-  <div class="fld"><span class="lb">Age</span><div class="pills"><button type="button" class="pill" data-set="dobMode" data-v="dob" aria-pressed="${S.dobMode==='dob'}">I know the birth date</button><button type="button" class="pill" data-set="dobMode" data-v="age" aria-pressed="${S.dobMode==='age'}">I know roughly</button></div></div>
+  <div class="fld"><span class="lb">Age</span><div class="pills"><button type="button" class="pill" data-set="dobMode" data-v="age" aria-pressed="${S.dobMode!=='dob'}">Roughly</button><button type="button" class="pill" data-set="dobMode" data-v="dob" aria-pressed="${S.dobMode==='dob'}">Exact birth date</button></div></div>
   ${S.dobMode==='dob'?fld('dob','Date of birth',txt('dob','','date',`max="${new Date().toISOString().slice(0,10)}"`)):`<div class="grid2">${fld('ageY','Years',txt('ageY','3','number','min="0" max="30" inputmode="numeric"'))}${fld('ageM','Months',txt('ageM','0','number','min="0" max="11" inputmode="numeric"'))}</div>`}
-  <div class="grid2">${fld('weight','Weight (kg)',txt('weight','e.g. 28','number','min="0" step="0.1" inputmode="decimal"'),'',1)}${fld('colour','Colour',txt('colour','e.g. Golden, white chest'),'',1)}</div>
-  ${fld('marks','Identification marks',txt('marks','e.g. Notch on left ear, white paw'),'Helps strangers match the photo',1)}`,
- photo:()=>`<span class="qn">Photo</span><h2>Add ${esc(NM())}'s best face.</h2><p class="sub">A clear, front-facing photo goes on the card. You can skip this and we'll use an illustration.</p>
-  ${MEM.photo?`<div style="display:flex;gap:14px;align-items:center"><img src="${MEM.photo}" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:18px"><div><span class="ok-tag">✓ Looking good!</span><br><button type="button" class="btn btn-ghost btn-sm" data-rmphoto style="margin-top:8px">Remove photo</button></div></div>`:drop('f_photo','Upload or take a photo','JPG or PNG. Face the camera, good light.',false,'image/*')}
-  <div class="note blue">💡 Insurers usually also need photos from 5 angles. We'll ask for those only if you choose insurance.</div>`,
- papers:()=>`<span class="qn">Registration</span><h2>Is ${esc(NM())} registered anywhere?</h2><p class="sub">Each one adds a verified badge to the card.</p>
-  <div class="fld"><span class="lb">Municipal licence (e.g. Jammu Municipal Corporation)</span>${yn('lic',[['applied','Applied']])}</div>
-  ${S.lic==='yes'||S.lic==='applied'?`<div class="grid2">${fld('licNo','Licence / token number',txt('licNo','e.g. JMC/DOG/2026/0412'))}${fld('licAuth','Issued by',txt('licAuth','e.g. Jammu Municipal Corporation'))}</div>`:S.lic==='no'?`<div class="note">Many cities require dog owners to register with the municipal corporation. We'll remind you, and the anti-rabies certificate you add next is usually what they ask for.</div>`:''}
-  <div class="fld"><span class="lb">Kennel Club of India (KCI) pedigree registration</span>${yn('kci')}</div>
-  ${S.kci==='yes'?fld('kciNo','KCI registration number',txt('kciNo','e.g. KCI 12345')):''}
-  <div class="fld"><span class="lb">Microchip</span>${yn('chip')}</div>
-  ${S.chip==='yes'?fld('chipNo','Microchip number (15 digits)',txt('chipNo','e.g. 985112003456789','text','inputmode="numeric" maxlength="15"')):''}`,
- records:()=>`<span class="qn">Health records</span><h2>Do you have ${esc(NM())}'s vaccination records?</h2>
-  ${choice('records',[['yes','Yes, all of them'],['some','Some'],['no','Not with me']])}
-  ${S.records&&S.records!=='no'?`${drop('f_docs','Upload vaccination card and reports','Photos or PDFs. Add as many as you like.',true)}${filesHTML(MEM.docs,'docs')}`:S.records==='no'?`<div class="note blue">No problem. Your vet can add them later, or you can upload them from the app.</div>`:''}
-  <div class="grid2">${fld('rabies','Last anti-rabies vaccine',txt('rabies','','date'),'',1)}${fld('core',sp()==='dog'?'Last DHPPi / core vaccine':'Last FVRCP / core vaccine',txt('core','','date'),'',1)}</div>
-  ${fld('deworm','Last deworming',txt('deworm','','date'),'We use these dates to set up reminders',1)}
-  <div class="grid2">${fld('conditions','Allergies or conditions',txt('conditions','e.g. Skin allergy, chicken'),'',1)}${fld('meds','Current medicines',txt('meds','e.g. None'),'',1)}</div>`,
- clinic:()=>`<span class="qn">Primary clinic</span><h2>Who's ${esc(NM())}'s vet?</h2><p class="sub">Reminders will go out in this clinic's name.</p>
-  <label class="check"><input type="checkbox" data-chk="clinicNone" ${S.clinicNone?'checked':''}> We don't have a regular vet yet. Suggest a partner clinic near me.</label>
-  ${S.clinicNone?'':`<div class="grid2">${fld('clinic','Clinic / hospital name',txt('clinic','e.g. City Vet Clinic'))}${fld('clinicArea','Area',txt('clinicArea','e.g. Gandhi Nagar, Jammu'),'',1)}</div>
-  <div class="grid2">${fld('doctor','Doctor name',txt('doctor','e.g. Dr. Mehta'))}${fld('doctorPh','Doctor mobile',`<div class="pfx"><span>+91</span>${txt('doctorPh','10 digits','tel','inputmode="numeric" maxlength="10"')}</div>`,'',1)}</div>
-  <div class="grid2">${fld('cOwner','Clinic owner name',txt('cOwner','e.g. Dr. Sharma'),'',1)}${fld('cOwnerPh','Clinic owner mobile',`<div class="pfx"><span>+91</span>${txt('cOwnerPh','10 digits','tel','inputmode="numeric" maxlength="10"')}</div>`,'',1)}</div>
-  ${fld('clinicPh','Clinic phone / reception',`<div class="pfx"><span>+91</span>${txt('clinicPh','10 digits','tel','inputmode="numeric" maxlength="10"')}</div>`,'',1)}`}`,
- owner:()=>`<span class="qn">You</span><h2>Who is ${esc(NM())}'s family?</h2>
-  ${fld('oName','Your full name',txt('oName','As on your ID proof','text','autocomplete="name"'))}
-  <div class="fld"><label for="f_oMobile">Mobile (WhatsApp)</label><div class="pfx"><span>+91</span>${txt('oMobile','10 digits','tel','inputmode="numeric" maxlength="10" autocomplete="tel-national"')}</div>
-  ${errs.oMobile?`<span class="errm">${errs.oMobile}</span>`:''}<span class="hint">Reminders and order updates come here on WhatsApp.</span></div>
-  ${fld('oEmail','Email',txt('oEmail','you@example.com','email','autocomplete="email"'),'',1)}
-  ${fld('oHouse','House / flat, street',txt('oHouse','e.g. 14, Lane 3','text','autocomplete="address-line1"'),'',1)}
+  ${fld('colour','Colour and marks',txt('colour','e.g. Golden, white patch on chest'),'Helps a finder match the photo',1)}`,
+ photo:()=>{const n=esc(NM()),st=MEM.pcheck,other=sp()==='dog'?'cat':'dog';
+  if(!MEM.photo)return `<span class="qn">Photo</span><h2>Add a photo of ${n}.</h2><p class="sub">It goes on the ID card, so a finder can match ${n}. Our AI checks it's really a ${sp()}.</p>
+   ${drop('f_photo','Take or upload a photo','A clear photo of '+NM()+'\'s face, in good light.',false,'image/*')}${errs.photo?`<span class="errm">${errs.photo}</span>`:''}`;
+  const msg={scanning:`<div class="pmsg wait"><b>Checking it's a ${sp()}…</b></div>`,
+   ok:`<div class="pmsg ok"><b>✓ ${sp()==='dog'?'Dog':'Cat'} spotted! Looking good.</b></div>`,
+   error:`<div class="pmsg ok"><b>✓ Photo added.</b></div>`,
+   manual:`<div class="pmsg ok"><b>✓ Photo added.</b><span>Our team will take a quick look at it.</span></div>`,
+   other:`<div class="pmsg bad"><b>This looks like a ${other}, not a ${sp()}.</b><span>Choose a photo of ${n}, or switch if ${n} is a ${other}.</span><div class="pacts"><label class="btn btn-blue btn-sm" for="f_photo">Choose another photo</label><button type="button" class="btn btn-ghost btn-sm" data-switchsp="${other}">${n} is a ${other}</button></div></div>`,
+   none:`<div class="pmsg bad"><b>We couldn't spot a ${sp()} in this photo.</b><span>Try a clear, bright photo where ${n} fills most of the picture.</span><div class="pacts"><label class="btn btn-blue btn-sm" for="f_photo">Choose another photo</label><button type="button" class="linkbtn" data-usephoto>This is ${n}, use it anyway</button></div></div>`}[st]||'';
+  return `<span class="qn">Photo</span><h2>${st==='ok'||st==='error'||st==='manual'?`Great photo of ${n}!`:`Add a photo of ${n}.`}</h2>
+   <div class="pview"><div class="pimg ${st==='scanning'?'scanning':''}"><img src="${MEM.photo}" alt="${n}"><i></i></div><div>${msg}
+   ${st==='scanning'||st==='other'||st==='none'?'':`<label class="btn btn-ghost btn-sm" for="f_photo">Change photo</label>`}</div></div>
+   <input type="file" id="f_photo" accept="image/*" hidden>${errs.photo?`<span class="errm">${errs.photo}</span>`:''}`},
+ health:()=>`<span class="qn">Health</span><h2>Is ${esc(NM())} vaccinated?</h2>
+  ${choice('records',[['yes','Yes'],['some','Some'],['no','No / not sure']])}
+  ${fld('rabies','Last anti-rabies vaccine',txt('rabies','','date',`max="${new Date().toISOString().slice(0,10)}"`),'We\'ll remind you before the next one',1)}
+  <div class="fld"><span class="lb">Vaccination card <span class="opt">(optional)</span></span>${drop('f_docs','Add a photo or PDF','You can also add it later.',true)}${filesHTML(MEM.docs,'docs')}</div>
+  <div class="grid2">${fld('conditions','Allergies or conditions',txt('conditions','e.g. Allergic to chicken'),'',1)}${fld('clinic','Vet clinic',txt('clinic','e.g. City Vet Clinic'),'',1)}</div>`,
+ owner:()=>`<span class="qn">You</span><h2>Who should a finder call?</h2><p class="sub">No password or account needed.</p>
+  ${fld('oName','Your name',txt('oName','Full name','text','autocomplete="name" autocapitalize="words"'))}
+  <div class="fld"><label for="f_oMobile">WhatsApp number</label><div class="pfx"><span>+91</span>${txt('oMobile','10 digits','tel','inputmode="numeric" maxlength="10" autocomplete="tel-national"')}</div>
+  ${errs.oMobile?`<span class="errm">${errs.oMobile}</span>`:'<span class="hint">A finder calls you on this. You choose what\'s shown on the next screen.</span>'}</div>
+  <div class="wa-opt"><label class="check"><input type="checkbox" data-chk="cWa" ${S.cWa?'checked':''}><span><b>Send ${esc(NM())}'s updates on WhatsApp</b><span class="hint">Vaccine reminders, ID card and order updates.</span></span></label>
+  <label class="check"><input type="checkbox" data-chk="cMkt" ${S.cMkt?'checked':''}><span><b>Send me offers and care tips on WhatsApp</b><span class="hint">Optional. Reply STOP any time.</span></span></label></div>
   <div class="grid2">${fld('oLocality','Locality',txt('oLocality','e.g. Gandhi Nagar'))}${fld('oCity','City',txt('oCity','e.g. Jammu','text','autocomplete="address-level2"'))}</div>
-  <div class="grid2">${fld('oState','State / UT',`<select class="inp" id="f_oState" data-k="oState">${STATES.map(s=>`<option ${S.oState===s?'selected':''}>${s}</option>`).join('')}</select>`)}${fld('oPin','PIN code',txt('oPin','6 digits','text','inputmode="numeric" maxlength="6" autocomplete="postal-code"'))}</div>
-  ${ME.user?`<div class="note blue">✓ This ID will be saved to your account (${esc(ME.user.name)}).</div>`:`<div class="acct-box"><b>Create your free account</b><span>So ${esc(NM())}'s ID, records and reminders are always saved. Log in any time to download the card, order the kit or get insurance quotes. Your mobile number is your login.</span><div class="pwrow"><div class="fld"><label for="f_pw">Create a password</label><input class="inp ${errs.pw?'err':''}" id="f_pw" data-mem="pw" type="password" autocomplete="new-password" placeholder="8+ characters" value="${esc(MEM.pw)}">${errs.pw?`<span class="errm">${errs.pw}</span>`:'<span class="hint">At least 8 characters</span>'}</div><div class="fld"><label for="f_pw2">Repeat password</label><input class="inp ${errs.pw2?'err':''}" id="f_pw2" data-mem="pw2" type="password" autocomplete="new-password" value="${esc(MEM.pw2)}">${errs.pw2?`<span class="errm">${errs.pw2}</span>`:''}</div></div></div>`}
-  <div class="grid2">${fld('eName','Emergency contact',txt('eName','Family member or friend'),'',1)}${fld('eMobile','Their mobile',`<div class="pfx"><span>+91</span>${txt('eMobile','10 digits','tel','inputmode="numeric" maxlength="10"')}</div>`,'',1)}</div>`,
- kyc:()=>`<span class="qn">ID proof</span><h2>Quick owner verification.</h2><p class="sub">Insurers need KYC before a policy, and municipal licences need owner ID. You can skip this now.</p>
-  ${fld('kycType','ID type',`<select class="inp" id="f_kycType" data-k="kycType"><option value="">Choose one</option>${['Aadhaar card','PAN card','Driving licence','Voter ID','Passport'].map(t=>`<option ${S.kycType===t?'selected':''}>${t}</option>`).join('')}</select>`,'',1)}
-  ${S.kycType?fld('kycNo',S.kycType+' number',txt('kycNo',S.kycType==='Aadhaar card'?'XXXX XXXX XXXX':'','text','autocomplete="off"'),S.kycType==='Aadhaar card'?'Only the last 4 digits will ever be shown. You may also upload a masked Aadhaar.':'',1):''}
-  ${S.kycType?drop('f_kyc','Upload front and back','Photo or PDF',true)+filesHTML(MEM.kycFiles,'kycFiles'):''}
-  <div class="note blue">🔒 We store only the last 4 digits of your ID number. Uploaded documents are kept private and shared only with the insurer you choose. See our <a href="/privacy-policy/" target="_blank" rel="noopener">Privacy Policy</a>.</div>`,
- privacy:()=>`<span class="qn">Privacy</span><h2>What can a stranger see when they scan ${esc(NM())}'s tag?</h2>
-  <div><div class="sw"><div><b>My phone number</b><span>So a finder can call you</span></div><button type="button" class="tgl" role="switch" data-tgl="pubPhone" aria-checked="${S.pubPhone}" aria-label="Show phone"></button></div>
-  <div class="sw"><div><b>My address</b><span>${S.pubAddr==='exact'?'Exact address shown':'Only locality and city shown'}</span></div><div class="pills"><button type="button" class="pill" data-set="pubAddr" data-v="locality" aria-pressed="${S.pubAddr==='locality'}">Locality</button><button type="button" class="pill" data-set="pubAddr" data-v="exact" aria-pressed="${S.pubAddr==='exact'}">Exact</button></div></div>
-  <div class="sw"><div><b>Vet and clinic</b><span>Useful in an emergency</span></div><button type="button" class="tgl" role="switch" data-tgl="pubVet" aria-checked="${S.pubVet}" aria-label="Show vet"></button></div>
-  <div class="sw"><div><b>Allergies and notes</b><span>e.g. "Allergic to chicken"</span></div><button type="button" class="tgl" role="switch" data-tgl="pubAllergy" aria-checked="${S.pubAllergy}" aria-label="Show allergies"></button></div>
-  <div class="sw"><div><b>Medical records</b><span>Always locked. Needs an OTP from you.</span></div><span class="ok-tag">🔒 Locked</span></div></div>
-  <label class="check"><input type="checkbox" data-chk="cTerms" ${S.cTerms?'checked':''}><span>I confirm these details are correct and agree to the <a href="/terms/" target="_blank" rel="noopener">Terms</a> and <a href="/privacy-policy/" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>${errs.cTerms?`<span class="errm">${errs.cTerms}</span>`:''}
-  <label class="check"><input type="checkbox" data-chk="cWa" ${S.cWa?'checked':''}><span>Send vaccine and deworming reminders on WhatsApp.</span></label>
-  <label class="check"><input type="checkbox" data-chk="cMkt" ${S.cMkt?'checked':''}><span>Send me offers, care tips and news from IndiaPetInsurance.com by WhatsApp, SMS or email. <span class="hint">Optional. Unsubscribe any time in your account.</span></span></label>`,
- review:()=>{const rows=[['name','Name & breed',`${S.name}, ${S.breed}`],['basics','About',[S.gender==='m'?'Male':S.gender==='f'?'Female':'',ageText(S),S.weight&&S.weight+' kg',S.colour].filter(Boolean).join(' · ')||'—'],['papers','Registration',[S.lic==='yes'?'Municipal licence '+(S.licNo||''):S.lic==='applied'?'Licence applied':'No licence',S.kci==='yes'?'KCI '+S.kciNo:'',S.chip==='yes'?'Chip '+S.chipNo:''].filter(Boolean).join(' · ')],['records','Health',`${MEM.docs.length} document(s)${S.rabies?' · Rabies '+fmt(S.rabies):''}${S.conditions?' · '+S.conditions:''}`],['clinic','Clinic',S.clinicNone?'Suggest a partner clinic':[S.clinic,S.doctor&&'Dr. '+S.doctor.replace(/^dr\.?\s*/i,''),S.doctorPh&&'+91 '+S.doctorPh].filter(Boolean).join(' · ')||'—'],['owner','Owner',`${S.oName} · +91 ${S.oMobile} · ${[S.oLocality,S.oCity,S.oPin].filter(Boolean).join(', ')}`],['kyc','ID proof',S.kycType?`${S.kycType}${MEM.kycFiles.length?' · uploaded':''}`:'Skipped (needed for insurance)']];
-  return `<span class="qn">Almost there</span><h2>Check ${esc(NM())}'s details.</h2>${loginBox&&!ME.user?`<div class="rv" style="border-color:var(--blue);display:grid;gap:10px;grid-template-columns:1fr"><b>You already have an account</b><p>Log in to add ${esc(NM())} to it.</p><div class="grid2"><input class="inp" id="inUser" value="${esc(S.oMobile)}" placeholder="Mobile or email" autocomplete="username"><input class="inp" id="inPass" type="password" placeholder="Password" autocomplete="current-password"></div><span class="errm" id="inErr"></span><div><button class="btn btn-blue btn-sm" type="button" id="inLogin">Log in and create ID</button> <a href="/account/" class="hint">Forgot password?</a></div></div>`:''}<div class="review">${rows.map(([s,t,v])=>`<div class="rv"><b>${t}</b><p>${esc(v)}</p><button type="button" data-goto="${s}">Edit</button></div>`).join('')}</div>`}
+  <div class="grid2">${fld('oState','State / UT',`<select class="inp" id="f_oState" data-k="oState">${STATES.map(s=>`<option ${S.oState===s?'selected':''}>${s}</option>`).join('')}</select>`)}${fld('oPin','PIN code',txt('oPin','6 digits','text','inputmode="numeric" maxlength="6" autocomplete="postal-code"'),'',1)}</div>
+  ${fld('oEmail','Email',txt('oEmail','you@example.com','email','autocomplete="email"'),'',1)}`,
+ review:()=>{const rows=[['name','Name & breed',`${S.name}, ${S.breed}`],['basics','About',[S.gender==='m'?'Male':S.gender==='f'?'Female':'',ageText(S),S.colour].filter(Boolean).join(' · ')||'—'],['health','Health',[{yes:'Vaccinated',some:'Some vaccines',no:'Not vaccinated'}[S.records]||'',S.rabies&&'Rabies '+fmt(S.rabies),MEM.docs.length&&MEM.docs.length+' document(s)',S.conditions,S.clinic].filter(Boolean).join(' · ')||'—'],['owner','You',`${S.oName} · +91 ${S.oMobile} · ${[S.oLocality,S.oCity].filter(Boolean).join(', ')}`]];
+  return `<span class="qn">Last step</span><h2>Check ${esc(NM())}'s details.</h2><div class="review">${rows.map(([s,t,v])=>`<div class="rv"><b>${t}</b><p>${esc(v)}</p><button type="button" data-goto="${s}">Edit</button></div>`).join('')}</div>
+  <div class="priv"><b>When someone scans ${esc(NM())}'s tag, show:</b>
+  <div class="sw"><div><b>My phone number</b><span>So a finder can call you</span></div><button type="button" class="tgl" role="switch" data-tgl="pubPhone" aria-checked="${S.pubPhone}" aria-label="Show phone"></button></div>
+  <div class="sw"><div><b>My area</b><span>Locality and city, never your house</span></div><button type="button" class="tgl" role="switch" data-tgl="pubArea" aria-checked="${S.pubArea!==false}" aria-label="Show area"></button></div>
+  <div class="sw"><div><b>Vet, allergies and notes</b><span>Useful in an emergency</span></div><button type="button" class="tgl" role="switch" data-tgl="pubVet" aria-checked="${S.pubVet}" aria-label="Show vet and allergies"></button></div>
+  <p class="hint">🔒 Vaccination records stay locked. Only you can open them.</p></div>
+  <label class="check"><input type="checkbox" data-chk="cTerms" ${S.cTerms?'checked':''}><span>These details are correct, and I agree to the <a href="/terms/" target="_blank" rel="noopener">Terms</a> and <a href="/privacy-policy/" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>${errs.cTerms?`<span class="errm">${errs.cTerms}</span>`:''}`}
 };
 const fmt=d=>{if(!d)return '';const x=new Date(d);return isNaN(x)?d:x.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})};
 
@@ -301,15 +285,11 @@ function validate(id){const e={},ph=/^[6-9]\d{9}$/;
   if(id==='name'&&!S.name.trim())e.name='Please add a name.';
   if(id==='breed'&&!S.breed)e.breed='Pick a breed, or choose "Mixed breed" or "Not sure".';
   if(id==='basics'){if(!S.gender)e.gender='Please choose one.';if(S.dobMode==='dob'&&S.dob&&new Date(S.dob)>new Date())e.dob='Birth date can\'t be in the future.'}
-  if(id==='papers'&&S.chip==='yes'&&S.chipNo&&!/^\d{15}$/.test(S.chipNo))e.chipNo='Microchip numbers are 15 digits.';
-  if(id==='clinic'&&!S.clinicNone){if(!S.clinic.trim())e.clinic='Add the clinic name, or tick the box above.';['doctorPh','cOwnerPh','clinicPh'].forEach(k=>{if(S[k]&&!ph.test(S[k]))e[k]='Enter a valid 10-digit mobile.'})}
-  if(id==='owner'){if(!S.oName.trim())e.oName='Please add your name.';if(!ph.test(S.oMobile))e.oMobile='Enter a valid 10-digit Indian mobile.';if(S.oEmail&&!/^\S+@\S+\.\S+$/.test(S.oEmail))e.oEmail='That email looks incomplete.';if(!S.oLocality.trim())e.oLocality='Add your locality.';if(!S.oCity.trim())e.oCity='Add your city.';if(!/^\d{6}$/.test(S.oPin))e.oPin='PIN codes are 6 digits.';if(S.eMobile&&!ph.test(S.eMobile))e.eMobile='Enter a valid 10-digit mobile.';
-    if(!ME.user&&ME.api){if(MEM.pw.length<8)e.pw='Use at least 8 characters.';else if(MEM.pw!==MEM.pw2)e.pw2='Passwords don\'t match.'}}
-  if(id==='kyc'&&S.kycType==='Aadhaar card'&&S.kycNo&&!/^\d{12}$/.test(S.kycNo.replace(/\s/g,'')))e.kycNo='Aadhaar numbers have 12 digits.';
-  if(id==='kyc'&&S.kycType==='PAN card'&&S.kycNo&&!/^[A-Z]{5}\d{4}[A-Z]$/i.test(S.kycNo))e.kycNo='PAN looks like ABCDE1234F.';
-  if(id==='privacy'&&!S.cTerms)e.cTerms='Please confirm to create the ID.';
+  if(id==='photo'){if(!MEM.photo)e.photo=`Add a photo of ${NM()} to continue.`;else if(MEM.pcheck==='scanning')e.photo='One second, still checking the photo.';else if(MEM.pcheck==='none'||MEM.pcheck==='other')e.photo='Choose another photo, or tap "use it anyway".'}
+  if(id==='owner'){if(!S.oName.trim())e.oName='Please add your name.';if(!ph.test(S.oMobile))e.oMobile='Enter a valid 10-digit Indian mobile.';if(S.oEmail&&!/^\S+@\S+\.\S+$/.test(S.oEmail))e.oEmail='That email looks incomplete.';if(!S.oLocality.trim())e.oLocality='Add your locality.';if(!S.oCity.trim())e.oCity='Add your city.';if(S.oPin&&!/^\d{6}$/.test(S.oPin))e.oPin='PIN codes are 6 digits.'}
+  if(id==='review'&&!S.cTerms)e.cTerms='Please tick this to create the ID.';
   return e}
-function pct(){const f=['name','breed','gender','neutered','colour','lic','records','clinic','oName','oMobile','oPin','cTerms'];let n=f.filter(k=>S[k]).length+(MEM.photo?1:0)+(S.dob||S.ageY?1:0)+(MEM.docs.length?1:0)+(S.kycType?1:0);return Math.min(100,Math.round(n/(f.length+4)*100))}
+function pct(){const f=['name','breed','gender','records','oName','oMobile','oLocality','cTerms'];let n=f.filter(k=>S[k]).length+(MEM.photo?1:0)+(S.dob||S.ageY?1:0);return Math.min(100,Math.round(n/(f.length+2)*100))}
 function updateCard(){
   const d={...S,idNo:S.idNo||''};
   $('#wzFront').innerHTML=cardFront(d,{photo:MEM.photo,flash,pfx:'w'});$('#wzBackCard').innerHTML=cardBack(d);flash='';
@@ -323,26 +303,26 @@ function render(anim=true){
   const id=STEPS[step];wiz.dataset.step=id;Q.className='wz-q'+(anim?' anim':'');Q.innerHTML=VIEWS[id]();
   const bt=$('#wzBackTop');if(bt)bt.hidden=step===0;
   $('#wzBack').style.visibility=step===0?'hidden':'visible';
-  $('#wzNext').textContent=id==='review'?(S.entry==='insurance'?`Continue to ${S.name?S.name+"'s":'your'} quote →`:`Create ${S.name||'the'} ID ✨`):(['photo','papers','records','kyc'].includes(id)&&!hasInput(id)?'Skip for now':'Continue');
+  $('#wzNext').textContent=id==='review'?(S.entry==='insurance'?`Continue to ${S.name?S.name+"'s":'your'} quote →`:(S.name?`Create ${S.name}'s ID ✨`:'Create the ID ✨')):(id==='health'&&!hasInput(id)?'Skip for now':'Continue');
   bind();updateCard();
 }
-function hasInput(id){return id==='photo'?!!MEM.photo:id==='papers'?!!(S.lic||S.kci||S.chip):id==='records'?!!(S.records||S.rabies):id==='kyc'?!!S.kycType:true}
+function hasInput(id){return id==='health'?!!(S.records||S.rabies||MEM.docs.length||S.conditions||S.clinic):true}
 function bind(){
-  Q.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>{let v=el.value;if(el.type==='tel'||['oPin','chipNo'].includes(el.dataset.k))v=v.replace(/\D/g,'');if(el.dataset.k==='kycNo'&&S.kycType==='PAN card')v=v.toUpperCase();if(v!==el.value)el.value=v;S[el.dataset.k]=v;if(el.dataset.k==='oMobile'){S.oVerified=false}delete errs[el.dataset.k];el.classList.remove('err');if(el.dataset.k==='name')flash='name';save();updateCard();if(STEPS[step]==='photo'||el.tagName==='SELECT'&&el.dataset.k==='kycType')render(false);if(el.dataset.k!=='oMobile')refreshNext()}));
+  Q.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>{let v=el.value;if(el.type==='tel'||['oPin','chipNo'].includes(el.dataset.k))v=v.replace(/\D/g,'');if(v!==el.value)el.value=v;S[el.dataset.k]=v;if(el.dataset.k==='oMobile'){S.oVerified=false}delete errs[el.dataset.k];el.classList.remove('err');if(el.dataset.k==='name')flash='name';save();updateCard();if(el.dataset.k!=='oMobile')refreshNext()}));
   Q.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{S[b.dataset.set]=b.dataset.v;delete errs[b.dataset.set];if(b.dataset.set==='breed')flash='breed';if(b.dataset.set==='species'){S.breed=''}save();
-    if(b.dataset.set==='species'||b.dataset.set==='name'&&STEPS[step]==='name'){render(false);if(b.dataset.set==='species')setTimeout(next,250);return}
+    if(b.dataset.set==='species'){MEM.photo='';MEM.pcheck='';S.photoCheck='';render(false);const n=$('#f_name');if(n&&!S.name)n.focus();return}
+    if(b.dataset.set==='name'&&STEPS[step]==='name'){render(false);return}
     if(b.dataset.set==='breed'){render(false);setTimeout(next,350);return}render(false)}));
-  Q.querySelectorAll('[data-mem]').forEach(el=>el.addEventListener('input',()=>{MEM[el.dataset.mem]=el.value;delete errs[el.dataset.mem];el.classList.remove('err')}));
-  const lg=$('#inLogin');if(lg)lg.onclick=inlineLogin;
-  Q.querySelectorAll('[data-tgl]').forEach(b=>b.addEventListener('click',()=>{S[b.dataset.tgl]=!S[b.dataset.tgl];save();render(false)}));
+  Q.querySelectorAll('[data-tgl]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.tgl;S[k]=S[k]===false?true:!S[k];if(k==='pubVet')S.pubAllergy=S.pubVet;save();render(false)}));
   Q.querySelectorAll('[data-chk]').forEach(c=>c.addEventListener('change',()=>{S[c.dataset.chk]=c.checked;delete errs[c.dataset.chk];save();render(false)}));
   Q.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>{step=STEPS.indexOf(b.dataset.goto);render()}));
   Q.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click',()=>{MEM[b.dataset.rm].splice(+b.dataset.i,1);render(false)}));
-  const rp=Q.querySelector('[data-rmphoto]');if(rp)rp.onclick=()=>{MEM.photo='';render(false)};
+  const up=Q.querySelector('[data-usephoto]');if(up)up.onclick=()=>{MEM.pcheck='manual';S.photoCheck='manual';delete errs.photo;save();render(false)};
+  const sw=Q.querySelector('[data-switchsp]');if(sw)sw.onclick=()=>{S.species=sw.dataset.switchsp;S.breed='';MEM.pcheck='ok';S.photoCheck='ok';delete errs.photo;save();step=STEPS.indexOf('breed');render();toast('Switched to '+S.species+'. Please pick the breed again.')};
   const bq=$('#bq');if(bq){bq.addEventListener('input',()=>{const q=bq.value.toLowerCase().trim();$('#blist').querySelectorAll('button').forEach(b=>b.hidden=q&&!b.dataset.v.toLowerCase().includes(q));$('#blist').querySelectorAll('.grp').forEach(g=>{let n=g.nextElementSibling,any=false;while(n&&!n.classList.contains('grp')){if(!n.hidden)any=true;n=n.nextElementSibling}g.hidden=!any})})}
-  const ph=$('#f_photo');if(ph)ph.addEventListener('change',()=>readImg(ph.files[0],u=>{MEM.photo=u;flash='';render(false)}));
+  const ph=$('#f_photo');if(ph)ph.addEventListener('change',()=>readImg(ph.files[0],u=>{delete errs.photo;checkPhoto(u)}));
+  if(STEPS[step]==='basics'||STEPS[step]==='photo')loadAI().catch(()=>{});   // fetch the dog/cat detector early
   const dc=$('#f_docs');if(dc)dc.addEventListener('change',()=>{MEM.docs.push(...[...dc.files].map(f=>({name:f.name,file:f})));if(!S.records)S.records='yes';render(false)});
-  const ky=$('#f_kyc');if(ky)ky.addEventListener('change',()=>{MEM.kycFiles.push(...[...ky.files].map(f=>({name:f.name,file:f})));render(false)});
   Q.querySelectorAll('.drop').forEach(d=>{['dragover','dragenter'].forEach(e=>d.addEventListener(e,()=>d.classList.add('over')));['dragleave','drop'].forEach(e=>d.addEventListener(e,()=>d.classList.remove('over')))});
   // Check each field when the person leaves it; show the message right under that field
   Q.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('blur',()=>{const k=el.dataset.k;if(!String(S[k]||'').trim())return;const e=validate(STEPS[step]);if(!e[k])return;errs[k]=e[k];el.classList.add('err');const f=el.closest('.fld');if(!f)return;let m=f.querySelector('.errm');if(!m){const h=f.querySelector('.hint');m=document.createElement('span');m.className='errm';h?h.replaceWith(m):f.appendChild(m)}m.textContent=e[k]}));
@@ -351,8 +331,24 @@ function bind(){
   const fields=[...Q.querySelectorAll('input.inp:not([type=file]),select.inp')].filter(x=>!x.disabled);
   fields.forEach((f,i)=>{f.setAttribute('enterkeyhint',i<fields.length-1?'next':'go');f.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const n=fields[i+1];if(n){n.focus();if(n.tagName==='SELECT'&&n.showPicker){try{n.showPicker()}catch(_){}}}else next()}})});
 }
-function refreshNext(){const id=STEPS[step];if(['photo','papers','records','kyc'].includes(id))$('#wzNext').textContent=hasInput(id)?'Continue':'Skip for now'}
+function refreshNext(){const id=STEPS[step];if(id==='health')$('#wzNext').textContent=hasInput(id)?'Continue':'Skip for now'}
 function readImg(file,cb){if(!file)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas'),s=Math.min(1,640/Math.max(img.width,img.height));c.width=img.width*s;c.height=img.height*s;c.getContext('2d').drawImage(img,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.85))};img.src=r.result};r.readAsDataURL(file)}
+/* ---------- AI photo check: is there really a dog / cat in the photo? Runs in the browser (COCO-SSD). ----------
+   If the detector can't load (slow or blocked network), the photo is accepted and marked "not checked". */
+const AI_JS=['https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js','https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js'];
+let aiP=null;
+function loadAI(){if(aiP)return aiP;
+  const add=src=>new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.async=true;s.crossOrigin='anonymous';s.onload=res;s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s)});
+  aiP=(window.cocoSsd?Promise.resolve():add(AI_JS[0]).then(()=>add(AI_JS[1]))).then(()=>window.cocoSsd.load({base:'lite_mobilenet_v2'}));
+  aiP.catch(()=>{aiP=null});return aiP}
+const timeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
+async function checkPhoto(url){const mine=url;MEM.photo=url;MEM.pcheck='scanning';S.photoCheck='';flash='';render(false);
+  try{const model=await timeout(loadAI(),25000);const img=new Image();img.src=url;await img.decode();
+    const preds=await model.detect(img,10,0.25);if(MEM.photo!==mine)return;
+    const best=c=>Math.max(0,...preds.filter(p=>p.class===c).map(p=>p.score)),want=sp(),other=want==='dog'?'cat':'dog';
+    if(best(want)>=0.4){MEM.pcheck='ok';S.photoCheck='ok'}else if(best(other)>=0.5)MEM.pcheck='other';else MEM.pcheck='none'}
+  catch(e){if(MEM.photo!==mine)return;MEM.pcheck='error';S.photoCheck='unchecked'}
+  save();if(STEPS[step]==='photo'&&view==='steps')render(false)}
 function next(){const id=STEPS[step];errs=validate(id);if(Object.keys(errs).length){render(false);const f=Q.querySelector('.err,.errm');f&&f.scrollIntoView({block:'center',behavior:'smooth'});return}
   if(id==='review'){createID();return}step++;render();$('#wzPane').scrollTop=0}
 $('#wzNext').onclick=next;
@@ -361,24 +357,22 @@ $('#wzBack').onclick=goBack;{const bt=$('#wzBackTop');if(bt)bt.onclick=goBack}
 
 /* ================= RESULT ================= */
 let orderStep='', insStep='', order={prod:'kit',size:'M',pay:'online'}, ins={plan:'complete',si:'50000',ill:'',pre:''};
-let busy=false,loginBox=false;
+let busy=false;
 async function createID(){
   if(busy)return;busy=true;const nb=$('#wzNext');nb.disabled=true;nb.textContent='Creating ID…';
   S.createdAt=S.createdAt||new Date().toISOString();
   S.src=srcSummary();
-  const fd=new FormData();fd.append('data',JSON.stringify(S));if(!ME.user)fd.append('password',MEM.pw);
+  S.pubAddr='locality';S.pubAllergy=S.pubVet;if(S.pubArea===false){S.pubAddr='hidden'}
+  const fd=new FormData();fd.append('data',JSON.stringify(S));
   if(MEM.photo)fd.append('photo',dataURLtoBlob(MEM.photo),'photo.jpg');
-  MEM.docs.forEach(d=>d.file&&fd.append('docs[]',d.file,d.name));MEM.kycFiles.forEach(d=>d.file&&fd.append('kyc[]',d.file,d.name));
-  try{const j=await api('pet.php',fd);S.idNo=j.id_no;S.saved=true;S.kycNo='';MEM.pw=MEM.pw2='';await refreshMe();finish()}
+  MEM.docs.forEach(d=>d.file&&fd.append('docs[]',d.file,d.name));
+  try{const j=await api('pet.php',fd);S.idNo=j.id_no;S.petKey=j.pet_key||'';S.saved=true;finish()}
   catch(e){
     if(e.offline||e.code==='not_installed'){S.idNo=idNumber(S);S.saved=false;finish();toast('We couldn\'t reach our server, so this ID is only on this device. Please try again in a few minutes.');}
-    else if(e.code==='account_exists'){loginBox=true;render(false);toast(e.error)}
-    else if(e.fields){errs=e.fields;const order=['species','name','breed','basics','papers','records','clinic','owner','kyc','privacy'];const where={name:'name',breed:'breed',gender:'basics',oName:'owner',oMobile:'owner',oEmail:'owner',oPin:'owner',password:'owner',cTerms:'privacy',doctorPh:'clinic',cOwnerPh:'clinic',clinicPh:'clinic',eMobile:'owner'};const f=Object.keys(e.fields)[0];if(f==='password')errs.pw=e.fields.password;step=STEPS.indexOf(where[f]||'review');render();toast(e.error)}
+    else if(e.fields){errs=e.fields;const where={species:'name',name:'name',breed:'breed',gender:'basics',photo:'photo',oName:'owner',oMobile:'owner',oEmail:'owner',oPin:'owner',cTerms:'review'};const f=Object.keys(e.fields)[0];step=STEPS.indexOf(where[f]||'review');render();toast(e.error)}
     else{toast(e.error||'Something went wrong. Please try again.')}
   }finally{busy=false;const b=$('#wzNext');if(b)b.disabled=false}}
 function finish(){save();view='result';render();confetti()}
-async function inlineLogin(){const l=$('#inUser').value,p=$('#inPass').value,er=$('#inErr');er.textContent='';
-  try{await api('auth.php',{action:'login',login:l,password:p});await refreshMe();loginBox=false;toast('Logged in as '+ME.user.name);createID()}catch(e){er.textContent=e.error||'Could not log in.'}}
 function reminders(){const out=[],add=(d,m)=>{const x=new Date(d);x.setMonth(x.getMonth()+m);return x},now=new Date();
   const nm=S.name;
   if(S.rabies)out.push(['💉',`Anti-rabies booster`,add(S.rabies,12)]);else out.push(['💉','Add anti-rabies date',null]);
@@ -419,7 +413,7 @@ return `<svg viewBox="0 0 520 330" role="img" aria-label="Safety kit: reflective
 function kitInfoHTML(nm){return `<ul class="kit-list">
    <li><i>🏷️</i><span><b>2 hanging QR ID tags</b>Steel, engraved with ${nm}'s name and ID. One spare.</span></li>
    <li><i>✨</i><span><b>1 premium reflective collar</b>Shines in headlights on night walks.</span></li>
-   <li><i>🪪</i><span><b>1 PVC ID card</b>Wallet size, with all of ${nm}'s details and QR.</span></li>
+   <li><i>🪪</i><span><b>1 plastic ID card for your wallet</b>Carry ${nm}'s ID everywhere. Anyone can scan its QR to see ${nm}'s profile and call you. Vaccination records open only for you.</span></li>
    <li><i>💧</i><span><b>1 one-press travel water bottle</b>Press the button and water fills the built-in cup, so ${nm} can drink anywhere. One hand, no mess.</span></li></ul>`}
 function renderResult(){
   wiz.dataset.step='result';{const bt=$('#wzBackTop');if(bt)bt.hidden=true}
@@ -517,7 +511,7 @@ function bindResult(){
   $('#resFlip').onclick=()=>$('#resFlip').classList.toggle('flipped');$('#resFlipBtn').onclick=()=>$('#resFlip').classList.toggle('flipped');
   Q.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>jump(b.dataset.jump));
   Q.querySelectorAll('[data-toast]').forEach(b=>b.onclick=()=>toast(b.dataset.toast));
-  $('#addAnother').onclick=()=>{order={prod:'kit',size:'M',pay:'online'};const keep=ME.user?{oName:S.oName,oMobile:S.oMobile,oEmail:S.oEmail,oHouse:S.oHouse,oLocality:S.oLocality,oCity:S.oCity,oState:S.oState,oPin:S.oPin,eName:S.eName,eMobile:S.eMobile}:{};S={...blank(),...keep};MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';step=0;view='steps';save();Q.removeAttribute('style');render()};
+  $('#addAnother').onclick=()=>{order={prod:'kit',size:'M',pay:'online'};const keep={oName:S.oName,oMobile:S.oMobile,oEmail:S.oEmail,oHouse:S.oHouse,oLocality:S.oLocality,oCity:S.oCity,oState:S.oState,oPin:S.oPin};S={...blank(),...keep};MEM.photo='';MEM.docs=[];MEM.kycFiles=[];MEM.angles={};orderStep='';insStep='';step=0;view='steps';save();Q.removeAttribute('style');render()};
   setupDownload();bindOrder();bindIns();
 }
 function placeLabel(){const P=`₹${KIT_PRICE.toLocaleString('en-IN')}`;if(order.pay==='cod')return `Place order · ${P} on delivery`;return order.pending?`Try payment again · ${P}`:`Pay ${P} securely`}

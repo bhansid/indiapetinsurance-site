@@ -31,7 +31,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $pid = (int)($_POST['pet'] ?? 0);
             $own = q('SELECT id, data FROM pets WHERE id = ? AND owner_id = ?', [$pid, $me['id']])->fetch();
             if ($own) {
-                $pp = isset($_POST['pub_phone']) ? 1 : 0; $pa = ($_POST['pub_addr'] ?? '') === 'exact' ? 'exact' : 'locality'; $pv = isset($_POST['pub_vet']) ? 1 : 0; $pal = isset($_POST['pub_allergy']) ? 1 : 0;
+                $pp = isset($_POST['pub_phone']) ? 1 : 0; $pa = in_array($_POST['pub_addr'] ?? '', ['exact', 'hidden'], true) ? $_POST['pub_addr'] : 'locality'; $pv = isset($_POST['pub_vet']) ? 1 : 0; $pal = isset($_POST['pub_allergy']) ? 1 : 0;
                 $d = json_decode($own['data'], true) ?: [];
                 $d['pubPhone'] = (bool)$pp; $d['pubAddr'] = $pa; $d['pubVet'] = (bool)$pv; $d['pubAllergy'] = (bool)$pal;
                 q('UPDATE pets SET pub_phone = ?, pub_addr = ?, pub_vet = ?, pub_allergy = ?, data = ?, updated_at = ? WHERE id = ?', [$pp, $pa, $pv, $pal, json_encode($d, JSON_UNESCAPED_UNICODE), now(), $pid]);
@@ -56,7 +56,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=14">
+<link rel="stylesheet" href="/assets/style.css?v=15">
 </head>
 <?php
 $paw = '<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="5.5" cy="10" r="2.2"/><circle cx="9.5" cy="6" r="2.2"/><circle cx="14.5" cy="6" r="2.2"/><circle cx="18.5" cy="10" r="2.2"/></svg>';
@@ -124,7 +124,7 @@ if (!$me): ?>
       </div>
       <div class="ap-acts">
         <button class="btn btn-blue btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="card">View &amp; download ID card</button>
-        <button class="btn btn-saffron btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="kit">Order safety kit · ₹1,000</button>
+        <button class="btn btn-saffron btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="kit">Order <?= e($p['name']) ?>'s safety kit · ₹1,000</button>
         <button class="btn btn-ghost btn-sm" type="button" data-pet="<?= e($p['id_no']) ?>" data-act="quote">Protect <?= e($p['name']) ?> now</button>
         <a class="btn btn-ghost btn-sm" href="/p/<?= e($p['id_no']) ?>" target="_blank" rel="noopener">QR profile ↗</a>
       </div>
@@ -133,7 +133,7 @@ if (!$me): ?>
       <details class="ap-more"><summary>What strangers see when they scan the tag</summary>
         <form method="post"><?= csrf_field() ?><input type="hidden" name="a" value="privacy"><input type="hidden" name="pet" value="<?= (int)$p['id'] ?>">
           <label class="sw"><span><b>My phone number</b></span><input type="checkbox" name="pub_phone" <?= $p['pub_phone'] ? 'checked' : '' ?>></label>
-          <label class="sw"><span><b>My address</b></span><select class="inp" name="pub_addr" style="width:auto"><option value="locality" <?= $p['pub_addr'] === 'locality' ? 'selected' : '' ?>>Locality only</option><option value="exact" <?= $p['pub_addr'] === 'exact' ? 'selected' : '' ?>>Exact address</option></select></label>
+          <label class="sw"><span><b>My address</b></span><select class="inp" name="pub_addr" style="width:auto"><option value="locality" <?= $p['pub_addr'] === 'locality' ? 'selected' : '' ?>>Locality only</option><option value="exact" <?= $p['pub_addr'] === 'exact' ? 'selected' : '' ?>>Exact address</option><option value="hidden" <?= $p['pub_addr'] === 'hidden' ? 'selected' : '' ?>>Hidden</option></select></label>
           <label class="sw"><span><b>Vet and clinic</b></span><input type="checkbox" name="pub_vet" <?= $p['pub_vet'] ? 'checked' : '' ?>></label>
           <label class="sw"><span><b>Allergies and notes</b></span><input type="checkbox" name="pub_allergy" <?= $p['pub_allergy'] ? 'checked' : '' ?>></label>
           <button class="btn btn-dark btn-sm" style="margin-top:12px">Save</button>
@@ -181,7 +181,7 @@ if (!$me): ?>
   if ($a !== false && $b !== false) echo substr($home, $a, $b - $a);
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
-<script src="/assets/app.js?v=14" defer></script>
+<script src="/assets/app.js?v=15" defer></script>
 </body>
 <?php endif; ?>
 </html>

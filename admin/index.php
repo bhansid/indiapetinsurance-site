@@ -362,6 +362,7 @@ case 'pet':
         <dt>Name</dt><dd><?= e($p['owner']) ?></dd><dt>Mobile</dt><dd><a href="tel:+91<?= e($p['mobile']) ?>">+91 <?= e($p['mobile']) ?></a> · <a href="https://wa.me/91<?= e($p['mobile']) ?>" target="_blank" rel="noopener">WhatsApp</a></dd><dt>Email</dt><dd><?= e($p['email']) ?: '—' ?></dd>
         <dt>Address</dt><dd><?= e(implode(', ', array_filter([$d['oHouse'] ?? '', $d['oLocality'] ?? '', $d['oCity'] ?? '', $d['oState'] ?? '', $d['oPin'] ?? '']))) ?></dd>
         <dt>Emergency</dt><dd><?= e(trim(($d['eName'] ?? '') . ' ' . (($d['eMobile'] ?? '') ? '+91 ' . $d['eMobile'] : ''))) ?: '—' ?></dd>
+        <dt>Photo check</dt><dd><?= ['ok' => '<span class="pill ok">AI: ' . e($p['species']) . ' found</span>', 'manual' => '<span class="pill bad">Needs review: AI found no ' . e($p['species']) . '</span>'][(string)($d['photoCheck'] ?? '')] ?? '<span class="pill grey">Not checked</span>' ?></dd>
         <dt>ID proof</dt><dd><?= e($d['kycType'] ?? '') ?: '—' ?><?= !empty($d['kycLast4']) ? ' · ending ' . e($d['kycLast4']) : '' ?></dd>
         <dt>WhatsApp reminders</dt><dd><?= !empty($d['cWa']) ? 'Yes' : 'No' ?></dd><dt>Came from</dt><dd><?= e($d['src'] ?? '') ?: '—' ?></dd></dl>
         <h2>Primary clinic</h2><dl class="kv">

@@ -1,14 +1,10 @@
 <?php
-/** Owner portal: full details of one of the logged-in owner's IDs. GET ?id=IPI-.. */
+/** Full details of an ID the visitor holds (logged-in owner, or X-Pet-Key). GET ?id=IPI-.. */
 declare(strict_types=1);
 require __DIR__ . '/lib/bootstrap.php';
 require_installed_api();
-$u = current_user();
-if (!$u) fail('Please log in first.', 401, ['code' => 'login_required']);
-$st = db()->prepare('SELECT * FROM pets WHERE id_no = ? AND owner_id = ?');
-$st->execute([str_field($_GET, 'id', 32), $u['id']]);
-$p = $st->fetch();
-if (!$p) fail('ID not found on your account.', 404);
+$p = pet_for_request(str_field($_GET, 'id', 32));
+if (!$p) fail('ID not found.', 404);
 $d = json_decode($p['data'], true) ?: [];
 $d['pubPhone'] = (bool)$p['pub_phone']; $d['pubAddr'] = $p['pub_addr']; $d['pubVet'] = (bool)$p['pub_vet']; $d['pubAllergy'] = (bool)$p['pub_allergy'];
 unset($d['kycNo']);

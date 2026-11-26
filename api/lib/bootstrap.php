@@ -59,7 +59,7 @@ function db(): PDO {
         $pdo->exec("SET time_zone = '+05:30'");
     }
     // One-time upgrades after a deploy (marker file lives next to the uploads, outside the web root)
-    $marker = upload_dir() . '/.schema-v4';
+    $marker = upload_dir() . '/.schema-v5';
     if (!is_file($marker)) {
         require_once __DIR__ . '/schema.php';
         run_migrations($pdo);
@@ -138,6 +138,22 @@ function find_user_by_login(string $login): ?array {
         $st = db()->prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)'); $st->execute([$login]);
     }
     return $st->fetch() ?: null;
+}
+/**
+ * The ID (pet row) this request may act on: the logged-in owner's own ID, or any ID whose private
+ * owner key is sent in the X-Pet-Key header (given to the browser when the ID was created; no password needed).
+ */
+function pet_for_request(string $idNo): ?array {
+    if ($idNo === '') return null;
+    $st = db()->prepare('SELECT * FROM pets WHERE id_no = ?');
+    $st->execute([$idNo]);
+    $p = $st->fetch();
+    if (!$p) return null;
+    $u = current_user();
+    if ($u && (int)$p['owner_id'] === (int)$u['id']) return $p;
+    $key = (string)($_SERVER['HTTP_X_PET_KEY'] ?? '');
+    if ($key !== '' && !empty($p['owner_key_hash']) && hash_equals((string)$p['owner_key_hash'], hash('sha256', $key))) return $p;
+    return null;
 }
 function clean_mobile($m): string { $m = preg_replace('/\D/', '', (string)$m); if (strlen($m) === 12 && substr($m, 0, 2) === '91') $m = substr($m, 2); return $m; }
 function valid_mobile(string $m): bool { return (bool)preg_match('/^[6-9]\d{9}$/', $m); }
